@@ -23,8 +23,11 @@ func NewCIResourceFSM() *CIResourceFSM {
 
 	fsm.State(ofcirv1.StateProvisioning,
 		fsm.handleStateProvisioning,
-		Transition("on-provisioning-complete", ofcirv1.StateAvailable),
-		Transition("on-provisioning-error", ofcirv1.StateError))
+		Transition("on-provisioning-requested", ofcirv1.StateProvisioningWait))
+
+	fsm.State(ofcirv1.StateProvisioningWait,
+		fsm.handleStateProvisioningWait,
+		Transition("on-provisioning-complete", ofcirv1.StateAvailable))
 
 	fsm.State(ofcirv1.StateAvailable,
 		fsm.handleStateAvailable,
@@ -41,11 +44,11 @@ func NewCIResourceFSM() *CIResourceFSM {
 
 	fsm.State(ofcirv1.StateCleaning,
 		fsm.handleStateCleaning,
-		Transition("on-cleaning-complete", ofcirv1.StateAvailable),
-		Transition("on-cleaning-error", ofcirv1.StateError))
+		Transition("on-cleaning-requested", ofcirv1.StateCleaningWait))
 
-	fsm.State(ofcirv1.StateError,
-		fsm.handleStateError)
+	fsm.State(ofcirv1.StateCleaningWait,
+		fsm.handleStateCleaningWait,
+		Transition("on-cleaning-complete", ofcirv1.StateAvailable))
 
 	fsm.BeforeAnyState(func(context CIResourceFSMContext) bool {
 		labels := context.CIResource.GetLabels()
@@ -70,6 +73,13 @@ func (f *CIResourceFSM) handleStateNone(context CIResourceFSMContext) (time.Dura
 func (f *CIResourceFSM) handleStateProvisioning(context CIResourceFSMContext) (time.Duration, error) {
 
 	//TODO: Based on pool provider type, provision a new resorce
+	f.TriggerEvent("on-provisioning-requested")
+
+	return defaultCirRetryDelay, nil
+}
+
+func (f *CIResourceFSM) handleStateProvisioningWait(context CIResourceFSMContext) (time.Duration, error) {
+
 	f.TriggerEvent("on-provisioning-complete")
 
 	return defaultCirRetryDelay, nil
@@ -112,10 +122,13 @@ func (f *CIResourceFSM) handleStateInUse(context CIResourceFSMContext) (time.Dur
 
 func (f *CIResourceFSM) handleStateCleaning(context CIResourceFSMContext) (time.Duration, error) {
 
+	//TODO: Based on pool provider type, clean the resorce
+	f.TriggerEvent("on-cleaning-requested")
+
 	return defaultCirRetryDelay, nil
 }
 
-func (f *CIResourceFSM) handleStateError(context CIResourceFSMContext) (time.Duration, error) {
+func (f *CIResourceFSM) handleStateCleaningWait(context CIResourceFSMContext) (time.Duration, error) {
 
 	return defaultCirRetryDelay, nil
 }

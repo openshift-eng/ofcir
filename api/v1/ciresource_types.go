@@ -35,6 +35,9 @@ const (
 	// StateProvisioning is the initial state when a new instance is allocated
 	StateProvisioning CIResourceState = "provisioning"
 
+	// StateProvisioningWait waits for the instance to be provisioned
+	StateProvisioningWait CIResourceState = "provisioning wait"
+
 	// StateAvailable is when an instance is ready to be picked up to host a CI job
 	StateAvailable CIResourceState = "available"
 
@@ -48,6 +51,9 @@ const (
 	// StateCleaning indicates the instance is getting cleaned, so that it
 	// could be used for the next incoming requests
 	StateCleaning CIResourceState = "cleaning"
+
+	// StateCleaningWait waits for the instance to be cleaned
+	StateCleaningWait CIResourceState = "cleaning wait"
 
 	// StateError is a terminal state in case something wrong happens during
 	// the provisioning or the cleaning state
