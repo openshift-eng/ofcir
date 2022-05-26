@@ -1,0 +1,6 @@
+apiVersion: ofcir.openshift/v1
+kind: CIResource
+metadata:
+  name: ciresource-sample
+spec:
+  # TODO(user): Add fields here

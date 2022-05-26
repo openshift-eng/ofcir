@@ -1,0 +1,59 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - cipools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - cipools/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - cipools/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - ciresources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - ciresources/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - ciresources/status
+  verbs:
+  - get
+  - patch
+  - update

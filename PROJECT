@@ -1,0 +1,25 @@
+domain: openshift
+layout:
+- go.kubebuilder.io/v3
+projectName: ofcir
+repo: github.com/openshift/ofcir
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openshift
+  group: ofcir
+  kind: CIPool
+  path: github.com/openshift/ofcir/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openshift
+  group: ofcir
+  kind: CIResource
+  path: github.com/openshift/ofcir/api/v1
+  version: v1
+version: "3"

@@ -1,0 +1,108 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: cipools.ofcir.openshift
+spec:
+  group: ofcir.openshift
+  names:
+    kind: CIPool
+    listKind: CIPoolList
+    plural: cipools
+    shortNames:
+    - cip
+    singular: cipool
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: The provider used by the pool to manage the resources
+      jsonPath: .spec.provider
+      name: Provider
+      type: string
+    - description: The requested size of the pool
+      jsonPath: .spec.size
+      name: Size
+      type: integer
+    - description: The priority of the pool
+      jsonPath: .spec.priority
+      name: Priority
+      type: integer
+    - description: The current state
+      jsonPath: .status.state
+      name: State
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: CIPool is the Schema for the cipools API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CIPoolSpec defines the desired state of CIPool
+            properties:
+              priority:
+                description: Used for selecting an eligible pool
+                type: integer
+              provider:
+                description: Identifies the kind of the pool
+                type: string
+              providerInfo:
+                description: Store any useful instance info specific to the current
+                  provider type
+                type: string
+              size:
+                description: Desired number of instances maintained by the current
+                  pool
+                type: integer
+              state:
+                description: Required state of the pool
+                type: string
+              timeout:
+                description: Specify how long a CIR instance will be allowed to remain
+                  in the inuse state
+                type: string
+            required:
+            - priority
+            - provider
+            - size
+            - state
+            - timeout
+            type: object
+          status:
+            description: CIPoolStatus defines the observed state of CIPool
+            properties:
+              lastUpdated:
+                description: LastUpdated identifies when this status was last observed.
+                format: date-time
+                type: string
+              state:
+                description: Current state of the pool
+                type: string
+            required:
+            - state
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

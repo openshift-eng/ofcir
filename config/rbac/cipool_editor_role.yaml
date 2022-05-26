@@ -1,0 +1,24 @@
+# permissions for end users to edit cipools.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cipool-editor-role
+rules:
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - cipools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - cipools/status
+  verbs:
+  - get

@@ -1,0 +1,10 @@
+apiVersion: ofcir.openshift/v1
+kind: CIPool
+metadata:
+  name: cipool-sample
+spec:
+  provider: fake-provider
+  priority: 0
+  size: 2
+  timeout: "4h"
+  state: available

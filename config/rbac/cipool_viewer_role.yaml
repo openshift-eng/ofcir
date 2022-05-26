@@ -1,0 +1,20 @@
+# permissions for end users to view cipools.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cipool-viewer-role
+rules:
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - cipools
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ofcir.openshift
+  resources:
+  - cipools/status
+  verbs:
+  - get
