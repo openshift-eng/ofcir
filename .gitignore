@@ -24,3 +24,4 @@ testbin/*
 *.swo
 *~
 minikube-linux-amd64
+resize-pool.sh

@@ -92,6 +92,9 @@ type CIResourceSpec struct {
 
 // CIResourceStatus defines the observed state of CIResource
 type CIResourceStatus struct {
+	// The unique identifier of the resource currently requested
+	ResourceId string `json:"resourceId"`
+
 	// Public IPv4 address
 	Address string `json:"address"`
 

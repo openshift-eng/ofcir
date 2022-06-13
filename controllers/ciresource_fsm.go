@@ -72,10 +72,14 @@ func (f *CIResourceFSM) handleStateNone(context CIResourceFSMContext) (time.Dura
 
 func (f *CIResourceFSM) handleStateProvisioning(context CIResourceFSMContext) (time.Duration, error) {
 
-	//TODO: Based on pool provider type, provision a new resorce
-	f.TriggerEvent("on-provisioning-requested")
+	resource, err := context.Provider.Acquire()
+	if err != nil {
+		return 0, err
+	}
 
-	return defaultCirRetryDelay, nil
+	context.CIResource.Status.ResourceId = resource.Id
+	context.CIResource.Status.ProviderInfo = resource.Metadata
+	return f.TriggerEvent("on-provisioning-requested")
 }
 
 func (f *CIResourceFSM) handleStateProvisioningWait(context CIResourceFSMContext) (time.Duration, error) {

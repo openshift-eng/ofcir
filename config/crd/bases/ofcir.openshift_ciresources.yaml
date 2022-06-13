@@ -89,11 +89,15 @@ spec:
                 description: Store any useful instance info specific to the current
                   provider type
                 type: string
+              resourceId:
+                description: The unique identifier of the resource currently requested
+                type: string
               state:
                 description: Current state of the resource
                 type: string
             required:
             - address
+            - resourceId
             - state
             type: object
         type: object
