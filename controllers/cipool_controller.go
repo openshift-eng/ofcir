@@ -98,40 +98,48 @@ func (r *CIPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 }
 
 func (r *CIPoolReconciler) manageCIResourcesFor(pool *ofcirv1.CIPool, logger logr.Logger) error {
-	// Pool is available. First of all let's check the number of CIResources
-	cirList := &ofcirv1.CIResourceList{}
-	err := r.List(context.TODO(), cirList, client.InNamespace(pool.Namespace))
+	// Retrieve all cirs
+	allCirs := &ofcirv1.CIResourceList{}
+	err := r.List(context.TODO(), allCirs, client.InNamespace(pool.Namespace))
 	if err != nil {
 		logger.Error(err, "failed to list CIResources in namespace: %s", pool.Namespace)
 		return err
 	}
 
-	sort.SliceStable(cirList.Items, func(i, j int) bool {
-		return cirList.Items[i].Name < cirList.Items[j].Name
+	sort.SliceStable(allCirs.Items, func(i, j int) bool {
+		return allCirs.Items[i].Name < allCirs.Items[j].Name
 	})
 
-	if pool.Spec.Size == len(cirList.Items) {
+	// Filters out cirs not belonging to the current pool
+	var poolCirs []ofcirv1.CIResource
+	for _, c := range allCirs.Items {
+		if c.Spec.PoolRef.Name == pool.Name {
+			poolCirs = append(poolCirs, c)
+		}
+	}
+
+	if pool.Spec.Size == len(poolCirs) {
 		return nil
 	}
 
-	if pool.Spec.Size > len(cirList.Items) {
-		logger.Info("Adding resources to the pool", "Expected", pool.Spec.Size, "Found", len(cirList.Items))
+	if pool.Spec.Size > len(poolCirs) {
+		logger.Info("Adding resources to the pool", "Expected", pool.Spec.Size, "Found", len(poolCirs))
 
-		baseCirNo := r.getHighestResourceNumeral(cirList.Items, logger) + 1
+		baseCirNo := r.getHighestResourceNumeral(allCirs.Items, logger) + 1
 
-		for i := baseCirNo; i < baseCirNo+(pool.Spec.Size-len(cirList.Items)); i++ {
+		for i := baseCirNo; i < baseCirNo+(pool.Spec.Size-len(poolCirs)); i++ {
 			logger.Info("Creating new CIResource", "CIResource", i)
 			if err = r.createCIResource(pool, i, logger); err != nil {
 				return err
 			}
 		}
 	} else {
-		logger.Info("Removing resources from the pool", "Expected", pool.Spec.Size, "Found", len(cirList.Items))
+		logger.Info("Removing resources from the pool", "Expected", pool.Spec.Size, "Found", len(poolCirs))
 
 		// Select candidates for eviction starting from the newest resources
 		numCirSelected := 0
-		for i := len(cirList.Items) - 1; i >= 0; i-- {
-			cir := cirList.Items[i]
+		for i := len(poolCirs) - 1; i >= 0; i-- {
+			cir := poolCirs[i]
 
 			switch cir.Status.State {
 			case ofcirv1.StateAvailable, ofcirv1.StateMaintenance, ofcirv1.StateError, ofcirv1.StateNone:
@@ -156,7 +164,7 @@ func (r *CIPoolReconciler) manageCIResourcesFor(pool *ofcirv1.CIPool, logger log
 				numCirSelected++
 			}
 
-			if numCirSelected >= len(cirList.Items)-pool.Spec.Size {
+			if numCirSelected >= len(poolCirs)-pool.Spec.Size {
 				break
 			}
 		}
