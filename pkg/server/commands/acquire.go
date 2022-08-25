@@ -77,7 +77,14 @@ func (c *acquireCmd) Run() error {
 
 func (c *acquireCmd) lookForAvailableResource(cirs []ofcirv1.CIResource) bool {
 	for _, r := range cirs {
-		if r.Status.State == ofcirv1.StateAvailable && r.Spec.State != ofcirv1.StateInUse {
+
+		// Only available resource are eligible to be acquired
+		if r.Status.State != ofcirv1.StateAvailable {
+			continue
+		}
+
+		// Check if the resource is not being requested by someone else
+		if r.Spec.State != ofcirv1.StateInUse && r.Spec.State != ofcirv1.StateMaintenance {
 
 			r.Spec.State = ofcirv1.StateInUse
 			_, err := c.clientset.CIResources(r.Namespace).Update(context.Background(), &r, v1.UpdateOptions{})

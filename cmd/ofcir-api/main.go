@@ -9,7 +9,7 @@ import (
 func main() {
 	var kubeconfig, port string
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
-	flag.StringVar(&port, "port", "8085", "server port")
+	flag.StringVar(&port, "port", "8087", "server port")
 	flag.Parse()
 
 	srv := server.NewOfcirAPI(port)
