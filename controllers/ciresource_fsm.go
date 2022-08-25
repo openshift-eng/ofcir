@@ -121,6 +121,11 @@ func (f *CIResourceFSM) handleStateMaintenance(context CIResourceFSMContext) (ti
 
 func (f *CIResourceFSM) handleStateInUse(context CIResourceFSMContext) (time.Duration, error) {
 
+	switch context.CIResource.Spec.State {
+	case ofcirv1.StateAvailable:
+		return f.TriggerEvent("released")
+	}
+
 	return defaultCirRetryDelay, nil
 }
 
@@ -133,6 +138,9 @@ func (f *CIResourceFSM) handleStateCleaning(context CIResourceFSMContext) (time.
 }
 
 func (f *CIResourceFSM) handleStateCleaningWait(context CIResourceFSMContext) (time.Duration, error) {
+
+	//TODO: Based on pool provider type, wait for cleaning to be completed
+	f.TriggerEvent("on-cleaning-complete")
 
 	return defaultCirRetryDelay, nil
 }

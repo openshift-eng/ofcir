@@ -20,12 +20,15 @@ type OfcirAPI struct {
 	config    *rest.Config
 	clientset *ofcirclientv1.OfcirV1Client
 	router    *gin.Engine
+
 	port      string
+	namespace string
 }
 
-func NewOfcirAPI(port string) *OfcirAPI {
+func NewOfcirAPI(port string, namespace string) *OfcirAPI {
 	return &OfcirAPI{
-		port: port,
+		port:      port,
+		namespace: namespace,
 	}
 }
 
@@ -57,9 +60,9 @@ func (o *OfcirAPI) Init(kubeconfig string) error {
 	// Setup the server
 	r := gin.Default()
 	r.Group("/v1").
-		GET("/ofcir/:name", o.handleGetCirStatus).
+		GET("/ofcir/:cirName", o.handleGetCirStatus).
 		POST("/ofcir", o.handleAcquireCir).
-		DELETE("/ofcir/:name", o.handleReleaseCir)
+		DELETE("/ofcir/:cirName", o.handleReleaseCir)
 
 	o.router = r
 	return nil
@@ -78,13 +81,23 @@ func (o *OfcirAPI) handleAcquireCir(c *gin.Context) {
 	defer o.Unlock()
 
 	//poolType := c.DefaultQuery("type", string(ofcirv1.TypeCIHost))
-	cmd := commands.NewAcquireCmd(c, o.clientset)
-	cmd.Run()
+	cmd := commands.NewAcquireCmd(c, o.clientset, o.namespace)
+	if err := cmd.Run(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": err.Error(),
+		})
+	}
 }
 
 func (o *OfcirAPI) handleReleaseCir(c *gin.Context) {
 	o.Lock()
 	defer o.Unlock()
 
-	c.String(http.StatusOK, "release")
+	cirName := c.Param("cirName")
+	cmd := commands.NewReleaseCmd(c, o.clientset, o.namespace, cirName)
+	if err := cmd.Run(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": err.Error(),
+		})
+	}
 }

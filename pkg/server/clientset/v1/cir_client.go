@@ -43,6 +43,7 @@ func (c *cirClient) Get(ctx context.Context, name string, opts metav1.GetOptions
 		Get().
 		Namespace(c.ns).
 		Resource(resourceName).
+		Name(name).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do(ctx).
 		Into(&result)
