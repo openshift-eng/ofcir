@@ -22,6 +22,10 @@ spec:
       jsonPath: .status.address
       name: Address
       type: string
+    - description: Requested state
+      jsonPath: .spec.state
+      name: Req State
+      type: string
     - description: Current state
       jsonPath: .status.state
       name: State
