@@ -14,20 +14,22 @@ import (
 type acquireCmd struct {
 	context   *gin.Context
 	clientset *ofcirclientv1.OfcirV1Client
+	namespace string
 }
 
-func NewAcquireCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client) command {
+func NewAcquireCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns string) command {
 	return &acquireCmd{
 		context:   c,
 		clientset: clientset,
+		namespace: ns,
 	}
 }
 
 func (c *acquireCmd) Run() error {
 
-	pools, err := c.clientset.CIPools("").List(context.Background(), v1.ListOptions{})
+	pools, err := c.clientset.CIPools(c.namespace).List(context.Background(), v1.ListOptions{})
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
 
 	poolsByName := make(map[string]ofcirv1.CIPool)
@@ -35,7 +37,7 @@ func (c *acquireCmd) Run() error {
 		poolsByName[p.Name] = p
 	}
 
-	allCirs, err := c.clientset.CIResources("").List(context.Background(), v1.ListOptions{})
+	allCirs, err := c.clientset.CIResources(c.namespace).List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		return err
 	}
