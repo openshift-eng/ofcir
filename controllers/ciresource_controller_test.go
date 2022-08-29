@@ -45,13 +45,21 @@ func TestCIResourceReconciler_Reconcile(t *testing.T) {
 
 			s := runtime.NewScheme()
 			_ = ofcirv1.AddToScheme(s)
+			_ = corev1.AddToScheme(s)
 
 			cipool := tt.cipool.build()
 			cir := tt.cir.pool(cipool).build()
 
+			cipoolSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("%s-secret", cipool.Name),
+					Namespace: cipool.Namespace,
+				},
+			}
+
 			fakeClient := fake.NewClientBuilder().
 				WithScheme(s).
-				WithRuntimeObjects(cipool, cir).Build()
+				WithRuntimeObjects(cipool, cipoolSecret, cir).Build()
 
 			r := &CIResourceReconciler{
 				Client: fakeClient,

@@ -2,6 +2,7 @@ package providers
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -13,30 +14,36 @@ type dummyInstance struct {
 	Resource
 	available bool
 }
-type Dummy struct {
+type dummyProvider struct {
 	instances map[string]dummyInstance
 }
 
-func NewDummyProvider() Provider {
-	dummy := &Dummy{
-		instances: make(map[string]dummyInstance),
-	}
+var dummy *dummyProvider
+var once sync.Once
 
-	for n := 0; n < maxAvailableResources; n++ {
-		instance := dummyInstance{
-			Resource: Resource{
-				Id:      fmt.Sprintf("dummy-%d", n),
-				Address: fmt.Sprintf("1.1.1.%d", n),
-			},
-			available: true,
+func DummyProviderFactory(providerInfo string, secretData map[string][]byte) Provider {
+	once.Do(func() {
+		dummy = &dummyProvider{
+			instances: make(map[string]dummyInstance),
 		}
-		dummy.instances[instance.Id] = instance
-	}
+
+		for n := 0; n < maxAvailableResources; n++ {
+			instance := dummyInstance{
+				Resource: Resource{
+					Id:       fmt.Sprintf("dummy-%d", n),
+					Address:  fmt.Sprintf("1.1.1.%d", n),
+					Metadata: "{}",
+				},
+				available: true,
+			}
+			dummy.instances[instance.Id] = instance
+		}
+	})
 
 	return dummy
 }
 
-func (p *Dummy) Acquire() (Resource, error) {
+func (p *dummyProvider) Acquire() (Resource, error) {
 
 	for _, i := range p.instances {
 		if i.available {
@@ -50,28 +57,39 @@ func (p *Dummy) Acquire() (Resource, error) {
 	return Resource{}, fmt.Errorf("no available resources found")
 }
 
-func (p *Dummy) Status(id string) (Resource, error) {
+func (p *dummyProvider) AcquireCompleted(id string) (bool, Resource, error) {
 
 	resource, ok := p.instances[id]
 	if !ok {
-		return Resource{}, fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
+		return false, Resource{}, fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
 	}
 
-	time.Sleep(time.Second * 1)
-	return resource.Resource, nil
+	time.Sleep(time.Second * 5)
+
+	return true, resource.Resource, nil
 }
 
-func (p *Dummy) Clean(id string) error {
+func (p *dummyProvider) Clean(id string) error {
 	_, ok := p.instances[id]
 	if !ok {
 		return fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
 	}
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 2)
 	return nil
 }
 
-func (p *Dummy) Release(id string) error {
+func (p *dummyProvider) CleanCompleted(id string) (bool, error) {
+	_, ok := p.instances[id]
+	if !ok {
+		return false, fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
+	}
+
+	time.Sleep(time.Second * 3)
+	return true, nil
+}
+
+func (p *dummyProvider) Release(id string) error {
 	resource, ok := p.instances[id]
 	if !ok {
 		return fmt.Errorf(fmt.Sprintf("Resource %s not found", id))

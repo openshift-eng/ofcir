@@ -38,6 +38,7 @@ func (c *cipoolClient) Get(ctx context.Context, name string, opts metav1.GetOpti
 		Get().
 		Namespace(c.ns).
 		Resource("cipools").
+		Name(name).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do(ctx).
 		Into(&result)

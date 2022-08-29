@@ -55,6 +55,9 @@ const (
 	// StateCleaningWait waits for the instance to be cleaned
 	StateCleaningWait CIResourceState = "cleaning wait"
 
+	// StateDelete manages the removal of the resource
+	StateDelete CIResourceState = "delete"
+
 	// StateError is a terminal state in case something wrong happens during
 	// the provisioning or the cleaning state
 	StateError CIResourceState = "error"
@@ -62,6 +65,8 @@ const (
 
 const (
 	EvictionLabel string = "ofcir/eviction"
+
+	CIResourceFinalizer string = "ofcir.openshift/finalizer"
 )
 
 // CIResourceType defines the possible types for a CIResource

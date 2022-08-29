@@ -64,6 +64,9 @@ type CIPoolStatus struct {
 	// Current state of the pool
 	State CIPoolState `json:"state"`
 
+	// Current number of instances maintained by the current pool
+	Size int `json:"size"`
+
 	// LastUpdated identifies when this status was last observed.
 	// +optional
 	LastUpdated *metav1.Time `json:"lastUpdated,omitempty"`
@@ -73,9 +76,10 @@ type CIPoolStatus struct {
 //+kubebuilder:resource:shortName=cip
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Provider",type="string",JSONPath=".spec.provider",description="The provider used by the pool to manage the resources"
-//+kubebuilder:printcolumn:name="Size",type="integer",JSONPath=".spec.size",description="The requested size of the pool"
 //+kubebuilder:printcolumn:name="Priority",type="integer",JSONPath=".spec.priority",description="The priority of the pool"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="The current state"
+//+kubebuilder:printcolumn:name="Size",type="integer",JSONPath=".status.size",description="The current size of the pool"
+//+kubebuilder:printcolumn:name="Req Size",type="integer",JSONPath=".spec.size",description="The requested size of the pool"
 
 // CIPool is the Schema for the cipools API
 type CIPool struct {

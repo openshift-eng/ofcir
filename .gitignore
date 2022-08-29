@@ -25,3 +25,4 @@ testbin/*
 *~
 minikube-linux-amd64
 resize-pool.sh
+tests
