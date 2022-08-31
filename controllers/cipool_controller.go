@@ -121,7 +121,7 @@ func (r *CIPoolReconciler) manageCIResourcesFor(pool *ofcirv1.CIPool, logger log
 	allCirs := &ofcirv1.CIResourceList{}
 	err := r.List(context.TODO(), allCirs, client.InNamespace(pool.Namespace))
 	if err != nil {
-		logger.Error(err, "failed to list CIResources in namespace: %s", pool.Namespace)
+		logger.Error(err, fmt.Sprintf("failed to list CIResources in namespace: %s", pool.Namespace))
 		return false, err
 	}
 

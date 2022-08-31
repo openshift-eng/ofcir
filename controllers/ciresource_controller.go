@@ -54,7 +54,7 @@ func (r *CIResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "could not get CIResource", req.Name)
+		logger.Error(err, "could not get CIResource", "Name", req.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -89,7 +89,7 @@ func (r *CIResourceReconciler) getPool(cir *ofcirv1.CIResource, logger logr.Logg
 	poolName := types.NamespacedName{Namespace: cir.Namespace, Name: cir.Spec.PoolRef.Name}
 	err := r.Get(context.Background(), poolName, pool)
 	if err != nil {
-		logger.Error(err, "could not get CIPool", cir.Spec.PoolRef)
+		logger.Error(err, "could not get CIPool", "Pool", cir.Spec.PoolRef)
 		return nil, nil, err
 	}
 
@@ -101,7 +101,7 @@ func (r *CIResourceReconciler) getPool(cir *ofcirv1.CIResource, logger logr.Logg
 	poolSecret := &v1.Secret{}
 	if err := r.Get(context.Background(), poolSecretKey, poolSecret); err != nil {
 		if !errors.IsNotFound(err) {
-			logger.Error(err, "could not get CIPool secret", cir.Spec.PoolRef)
+			logger.Error(err, "could not get CIPool secret", "Secret", cir.Spec.PoolRef)
 			return nil, nil, err
 		}
 	}

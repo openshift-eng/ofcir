@@ -119,9 +119,9 @@ type CIResourceStatus struct {
 //+kubebuilder:resource:shortName=cir
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Address",type="string",JSONPath=".status.address",description="Public IPv4 address"
-//+kubebuilder:printcolumn:name="Req State",type="string",JSONPath=".spec.state",description="Requested state"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="Current state"
 //+kubebuilder:printcolumn:name="Pool",type="string",JSONPath=".spec.poolRef.name",description="Pool owning the current resource"
+//+kubebuilder:printcolumn:name="Res Id",type="string",JSONPath=".status.resourceId",description="Resource Id"
 
 // CIResource represents a physical allocated instance (or set of instances) from a specific pool
 type CIResource struct {
