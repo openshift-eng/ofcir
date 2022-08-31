@@ -20,7 +20,7 @@ func NewProvider(pool *ofcirv1.CIPool, poolSecret *v1.Secret) (Provider, error) 
 	case ProviderDummy:
 		return DummyProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data), nil
 	case ProviderLibvirt:
-		return LibvirtProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data), nil
+		return LibvirtProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data)
 	default:
 		return nil, fmt.Errorf("unknown provider type: %s", pool.Spec.Provider)
 	}

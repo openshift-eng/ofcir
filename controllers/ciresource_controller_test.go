@@ -36,7 +36,7 @@ func TestCIResourceReconciler_Reconcile(t *testing.T) {
 			waitUntil: ofcirv1.StateAvailable,
 
 			expectedStates: []ofcirv1.CIResourceState{
-				ofcirv1.StateProvisioning, ofcirv1.StateProvisioningWait, ofcirv1.StateAvailable,
+				ofcirv1.StateNone, ofcirv1.StateProvisioning, ofcirv1.StateProvisioningWait, ofcirv1.StateAvailable,
 			},
 		},
 	}

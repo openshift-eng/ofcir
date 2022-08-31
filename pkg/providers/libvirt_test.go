@@ -9,10 +9,24 @@ import (
 	"libvirt.org/go/libvirt"
 )
 
+var (
+	secretData = map[string][]byte{
+		"config": []byte(`{
+"pool": "default",
+"volume": 20,
+"backing_store": "fedora-coreos-36.20220806.3.0-qemu.x86_64.qcow2",
+"memory": 4,
+"cpus": 2,
+"bridge": "virbr0",
+"ignition": "coreos.ign"
+}`)}
+)
+
 func TestAcquire(t *testing.T) {
 	t.Skip()
 
-	p := LibvirtProviderFactory("", map[string][]byte{})
+	p, err := LibvirtProviderFactory("", secretData)
+	assert.NoError(t, err)
 	res, err := p.Acquire()
 	assert.NoError(t, err)
 
@@ -38,12 +52,12 @@ func TestAcquire(t *testing.T) {
 func TestRelease(t *testing.T) {
 	t.Skip()
 
-	p := LibvirtProviderFactory("", map[string][]byte{})
+	p, _ := LibvirtProviderFactory("", map[string][]byte{})
 
 	conn, _ := libvirt.NewConnect("qemu:///system")
 	defer conn.Close()
 
-	domains, err := conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE)
+	domains, err := conn.ListAllDomains(0)
 	assert.NoError(t, err)
 
 	_ = time.Now()
@@ -62,7 +76,7 @@ func TestRelease(t *testing.T) {
 func TestClean(t *testing.T) {
 	t.Skip()
 
-	p := LibvirtProviderFactory("", map[string][]byte{})
+	p, _ := LibvirtProviderFactory("", map[string][]byte{})
 
 	conn, _ := libvirt.NewConnect("qemu:///system")
 	defer conn.Close()
@@ -75,19 +89,3 @@ func TestClean(t *testing.T) {
 	err = p.Clean(res.Id)
 	assert.NoError(t, err)
 }
-
-// func TestProviderInfoConfiguration(t *testing.T) {
-
-// 	jsonConfig := `{
-// "pool_name": "default"
-// "volume_capacity": 20
-// "backing_store": "/images/fedora-coreos-36.20220806.3.0-qemu.x86_64.qcow2"
-// "memory": 2
-// "cpus": 2
-// "brdige": "virbr0"
-// "ignitionPath": "/ignition/coreos.ign"
-// }`
-
-// 	p, err := LibvirtProviderFactory(jsonConfig, map[string][]byte{})
-// 	assert.NoError(t, err)
-// }

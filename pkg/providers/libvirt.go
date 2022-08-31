@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -14,27 +15,42 @@ var (
 	libvirtImagesPath   = "/var/lib/libvirt/images"
 )
 
-type libvirtProvider struct {
-	poolName     string //pool used for the volume
-	volCapacity  uint64 //volume capacity (GiB)
-	backingStore string //backing store used for the vm, must be qcow2
-	memory       uint   //amount of memory (GiB)
-	cpus         uint   //number of vcpus
-	bridge       string //the name of the bridge to be used
-	ignitionPath string //absolute ignition file path
+type libvirtProviderConfig struct {
+	Pool         string `json:"pool"`          //pool name used for the volume
+	Volume       uint64 `json:"volume"`        //volume capacity (GiB)
+	BackingStore string `json:"backing_store"` //backing store used for the vm, must be qcow2
+	Memory       uint   `json:"memory"`        //amount of memory (GiB)
+	Cpus         uint   `json:"cpus"`          //number of vcpus
+	Bridge       string `json:"bridge"`        //the name of the bridge to be used
+	Ignition     string `json:"ignition"`      //absolute ignition file path
 }
 
-func LibvirtProviderFactory(providerInfo string, secretData map[string][]byte) Provider {
-	l := &libvirtProvider{
-		poolName:     "default",
-		volCapacity:  20,
-		backingStore: "/ofcir/tests/fedora-coreos-36.20220806.3.0-qemu.x86_64.qcow2",
-		memory:       2,
-		cpus:         2,
-		bridge:       "virbr0",
-		ignitionPath: "/ofcir/tests/coreos.ign",
+type libvirtProvider struct {
+	config libvirtProviderConfig
+}
+
+func LibvirtProviderFactory(providerInfo string, secretData map[string][]byte) (Provider, error) {
+
+	config := libvirtProviderConfig{
+		Pool:         "default",
+		Volume:       20,
+		BackingStore: "/ofcir/tests/fedora-coreos-36.20220806.3.0-qemu.x86_64.qcow2",
+		Memory:       2,
+		Cpus:         2,
+		Bridge:       "virbr0",
+		Ignition:     "/ofcir/tests/coreos.ign",
 	}
-	return l
+
+	if configJSON, ok := secretData["config"]; ok {
+
+		if err := json.Unmarshal(configJSON, &config); err != nil {
+			return nil, err
+		}
+	}
+
+	return &libvirtProvider{
+		config: config,
+	}, nil
 }
 
 func (p *libvirtProvider) Acquire() (Resource, error) {
@@ -81,7 +97,7 @@ func (p *libvirtProvider) AcquireCompleted(id string) (bool, Resource, error) {
 	}
 
 	// Look for IP Address
-	network, err := conn.LookupNetworkByName(p.poolName)
+	network, err := conn.LookupNetworkByName(p.config.Pool)
 	if err != nil {
 		return false, res, err
 	}
@@ -184,7 +200,7 @@ func (p *libvirtProvider) createVM(name string, macAddress string) error {
 	}
 
 	// Create volume
-	pool, err := conn.LookupStoragePoolByName(p.poolName)
+	pool, err := conn.LookupStoragePoolByName(p.config.Pool)
 	if err != nil {
 		return err
 	}
@@ -193,7 +209,7 @@ func (p *libvirtProvider) createVM(name string, macAddress string) error {
 		Type: "file",
 		Name: fmt.Sprintf("%s.qcow2", name),
 		Capacity: &libvirtxml.StorageVolumeSize{
-			Value: p.volCapacity,
+			Value: p.config.Volume,
 			Unit:  "GiB",
 		},
 		Allocation: &libvirtxml.StorageVolumeSize{
@@ -213,7 +229,7 @@ func (p *libvirtProvider) createVM(name string, macAddress string) error {
 			},
 		},
 		BackingStore: &libvirtxml.StorageVolumeBackingStore{
-			Path: p.backingStore,
+			Path: p.config.BackingStore,
 			Format: &libvirtxml.StorageVolumeTargetFormat{
 				Type: "qcow2",
 			},
@@ -234,7 +250,7 @@ func (p *libvirtProvider) createVM(name string, macAddress string) error {
 	domInterface := libvirtxml.DomainInterface{
 		Source: &libvirtxml.DomainInterfaceSource{
 			Bridge: &libvirtxml.DomainInterfaceSourceBridge{
-				Bridge: p.bridge,
+				Bridge: p.config.Bridge,
 			},
 		},
 		Model: &libvirtxml.DomainInterfaceModel{
@@ -254,15 +270,15 @@ func (p *libvirtProvider) createVM(name string, macAddress string) error {
 			XML: "<libosinfo:libosinfo xmlns:libosinfo=\"http://libosinfo.org/xmlns/libvirt/domain/1.0\"><libosinfo:os id=\"http://fedoraproject.org/coreos/stable\"/></libosinfo:libosinfo>",
 		},
 		Memory: &libvirtxml.DomainMemory{
-			Value: p.memory,
+			Value: p.config.Memory,
 			Unit:  "GiB",
 		},
 		CurrentMemory: &libvirtxml.DomainCurrentMemory{
-			Value: p.memory,
+			Value: p.config.Memory,
 			Unit:  "GiB",
 		},
 		VCPU: &libvirtxml.DomainVCPU{
-			Value: p.cpus,
+			Value: p.config.Cpus,
 		},
 		OS: &libvirtxml.DomainOS{
 			Type: &libvirtxml.DomainOSType{
@@ -343,7 +359,7 @@ func (p *libvirtProvider) createVM(name string, macAddress string) error {
 					Value: "-fw_cfg",
 				},
 				{
-					Value: fmt.Sprintf("name=opt/com.coreos/config,file=%s", p.ignitionPath),
+					Value: fmt.Sprintf("name=opt/com.coreos/config,file=%s", p.config.Ignition),
 				},
 			},
 		},

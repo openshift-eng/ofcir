@@ -45,4 +45,14 @@ metadata:
   name: cipool-libvirt-secret
 type: Opaque
 stringData:
-  config: "<tbd>"
+  config: |
+    {
+      "pool": "default",
+      "volume": 20,
+      "backing_store": "fedora-coreos-36.20220806.3.0-qemu.x86_64.qcow2",
+      "memory": 4,
+      "cpus": 2,
+      "bridge": "virbr0",
+      "ignition": "coreos.ign"
+    }
+

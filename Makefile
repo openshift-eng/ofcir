@@ -66,6 +66,10 @@ build: generate fmt vet ## Build manager binary.
 	go build -o bin/ofcir-operator main.go
 	go build -o bin/ofcir-api cmd/ofcir-api/main.go
 
+.PHONY: unit-tests
+unit-tests: fmt vet
+	go test ./...
+
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go

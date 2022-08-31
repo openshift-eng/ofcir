@@ -64,7 +64,7 @@ func (p *dummyProvider) AcquireCompleted(id string) (bool, Resource, error) {
 		return false, Resource{}, fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
 	}
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 2)
 
 	return true, resource.Resource, nil
 }
@@ -85,7 +85,7 @@ func (p *dummyProvider) CleanCompleted(id string) (bool, error) {
 		return false, fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
 	}
 
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 2)
 	return true, nil
 }
 
