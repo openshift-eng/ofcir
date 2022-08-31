@@ -64,3 +64,32 @@ stringData:
       "ignition": "/tests/coreos.ign"
     }
 
+---
+
+apiVersion: ofcir.openshift/v1
+kind: CIPool
+metadata:
+  name: cipool-ironic
+spec:
+  provider: ironic
+  priority: 0
+  size: 0
+  timeout: '4h'
+  state: available
+  type: host
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cipool-ironic-secret
+type: Opaque
+stringData:
+  config: |
+    {
+      "username": "ironic-user",
+      "password": "XXXX",
+      "endpoint": "https://172.22.0.3:6385",
+      "image": "http://172.22.0.1/images/ofcir_image.qcow2"
+    }
