@@ -89,3 +89,14 @@ func TestClean(t *testing.T) {
 	err = p.Clean(res.Id)
 	assert.NoError(t, err)
 }
+
+func TestMetatdata(t *testing.T) {
+
+	// conn, _ := libvirt.NewConnect("qemu:///system")
+	// defer conn.Close()
+
+	// domain, err := conn.LookupDomainByName("ofcir-vm-e4439cc63d464089a8229ba122602c01")
+	// assert.NoError(t, err)
+
+	// conn.domain
+}

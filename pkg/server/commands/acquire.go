@@ -79,12 +79,12 @@ func (c *acquireCmd) Run() error {
 	})
 
 	// Let's try to look for an available resource in the default pools
-	if c.lookForAvailableResource(cirs) {
+	if c.lookForAvailableResource(cirs, poolsByName) {
 		return nil
 	}
 
 	// Let's try on the fallback one
-	if c.lookForAvailableResource(fallbacks) {
+	if c.lookForAvailableResource(fallbacks, poolsByName) {
 		return nil
 	}
 
@@ -92,7 +92,7 @@ func (c *acquireCmd) Run() error {
 	return nil
 }
 
-func (c *acquireCmd) lookForAvailableResource(cirs []ofcirv1.CIResource) bool {
+func (c *acquireCmd) lookForAvailableResource(cirs []ofcirv1.CIResource, poolsByName map[string]ofcirv1.CIPool) bool {
 	for _, r := range cirs {
 
 		// Only available resource are eligible to be acquired
@@ -109,7 +109,15 @@ func (c *acquireCmd) lookForAvailableResource(cirs []ofcirv1.CIResource) bool {
 				continue
 			}
 
-			c.context.String(http.StatusOK, r.Name)
+			pool := poolsByName[r.Spec.PoolRef.Name]
+
+			c.context.JSON(http.StatusOK, gin.H{
+				"name":         r.Name,
+				"pool":         pool.Name,
+				"provider":     pool.Spec.Provider,
+				"providerInfo": r.Status.ProviderInfo,
+				"type":         r.Spec.Type,
+			})
 			return true
 		}
 	}

@@ -105,7 +105,7 @@ func (f *CIResourceFSM) handleStateProvisioning(context CIResourceFSMContext) (t
 	}
 
 	context.CIResource.Status.ResourceId = resource.Id
-	context.CIResource.Status.ProviderInfo = resource.Metadata
+	context.CIResource.Status.ProviderInfo = context.CIPool.Spec.ProviderInfo
 	f.logger.Info("provisioning new resource", "Id", resource.Id)
 
 	return f.TriggerEvent("on-provisioning-requested")
@@ -120,7 +120,7 @@ func (f *CIResourceFSM) handleStateProvisioningWait(context CIResourceFSMContext
 
 	if isReady {
 		context.CIResource.Status.Address = resource.Address
-		context.CIResource.Status.ProviderInfo = resource.Metadata
+		context.CIResource.Status.Extra = resource.Metadata
 
 		f.logger.Info("resource was provisioned", "Id", context.CIResource.Status.ResourceId, "Address", context.CIResource.Status.Address)
 		f.TriggerEvent("on-provisioning-complete")

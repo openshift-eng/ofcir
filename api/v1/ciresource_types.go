@@ -107,6 +107,10 @@ type CIResourceStatus struct {
 	// +optional
 	ProviderInfo string `json:"providerInfo,omitempty"`
 
+	// This field may contain extra data that may vary depending on the
+	// specific resource type used
+	Extra string `json:"extra,omitempty"`
+
 	// Current state of the resource
 	State CIResourceState `json:"state"`
 
