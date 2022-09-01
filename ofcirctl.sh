@@ -8,7 +8,7 @@ if [ $# -lt 1 ]; then
     echo " - status <cir-id>"
     echo " - release <cir-id>"
     echo " - change-state <cir-id> <state>"
-    echo " - set-pool-size <pool-id> <size>"
+    echo " - resize-pool <pool-id> <size>"
 
     exit 1
 fi
@@ -46,7 +46,7 @@ case $1 in
         echo $res
         ;;
 
-    set-pool-size)
+    resize-pool)
         if [ $# -ne 3 ]; then
             echo "Command requires <pool-id> <size>"
             exit 1

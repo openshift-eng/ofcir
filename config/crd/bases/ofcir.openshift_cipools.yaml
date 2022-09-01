@@ -22,10 +22,6 @@ spec:
       jsonPath: .spec.provider
       name: Provider
       type: string
-    - description: The requested size of the pool
-      jsonPath: .spec.size
-      name: Size
-      type: integer
     - description: The priority of the pool
       jsonPath: .spec.priority
       name: Priority
@@ -34,6 +30,14 @@ spec:
       jsonPath: .status.state
       name: State
       type: string
+    - description: The current size of the pool
+      jsonPath: .status.size
+      name: Size
+      type: integer
+    - description: The requested size of the pool
+      jsonPath: .spec.size
+      name: Req Size
+      type: integer
     name: v1
     schema:
       openAPIV3Schema:
@@ -89,10 +93,15 @@ spec:
                 description: LastUpdated identifies when this status was last observed.
                 format: date-time
                 type: string
+              size:
+                description: Current number of instances maintained by the current
+                  pool
+                type: integer
               state:
                 description: Current state of the pool
                 type: string
             required:
+            - size
             - state
             type: object
         type: object

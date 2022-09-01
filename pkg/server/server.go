@@ -73,7 +73,13 @@ func (o *OfcirAPI) Run() {
 }
 
 func (o *OfcirAPI) handleGetCirStatus(c *gin.Context) {
-	c.String(http.StatusOK, "ge status")
+	cirName := c.Param("cirName")
+	cmd := commands.NewStatusCmd(c, o.clientset, o.namespace, cirName)
+	if err := cmd.Run(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": err.Error(),
+		})
+	}
 }
 
 func (o *OfcirAPI) handleAcquireCir(c *gin.Context) {

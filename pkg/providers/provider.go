@@ -17,13 +17,16 @@ type Provider interface {
 	// with a Resource containing at least the Id
 	Acquire() (Resource, error)
 
-	// Fetch the current status of the specified resource. It could be
+	// Check if the acquire operation completed or not. It could be
 	// used to poll a resource for its public address after an Acqure
-	Status(id string) (Resource, error)
+	AcquireCompleted(id string) (bool, Resource, error)
 
 	// Remove all data from the resource, preparing it for a new
 	// request
 	Clean(id string) error
+
+	// Check if the clean operation completed or not.
+	CleanCompleted(id string) (bool, error)
 
 	// Release the specified resource, to be used for a new request
 	Release(id string) error

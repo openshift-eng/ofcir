@@ -22,10 +22,6 @@ spec:
       jsonPath: .status.address
       name: Address
       type: string
-    - description: Requested state
-      jsonPath: .spec.state
-      name: Req State
-      type: string
     - description: Current state
       jsonPath: .status.state
       name: State
@@ -33,6 +29,10 @@ spec:
     - description: Pool owning the current resource
       jsonPath: .spec.poolRef.name
       name: Pool
+      type: string
+    - description: Resource Id
+      jsonPath: .status.resourceId
+      name: Res Id
       type: string
     name: v1
     schema:

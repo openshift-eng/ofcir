@@ -5,12 +5,15 @@ go 1.17
 require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-logr/logr v1.2.0
+	github.com/google/uuid v1.3.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/stretchr/testify v1.7.2
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v0.23.5
+	libvirt.org/go/libvirt v1.8006.0
+	libvirt.org/go/libvirtxml v1.8006.0
 	sigs.k8s.io/controller-runtime v0.11.2
 )
 
@@ -39,7 +42,6 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
-	github.com/google/uuid v1.1.2 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
