@@ -57,6 +57,9 @@ type CIPoolSpec struct {
 
 	// Required state of the pool
 	State CIPoolState `json:"state"`
+
+	// The type of the resources managed by the pool
+	Type CIResourceType `json:"type"`
 }
 
 // CIPoolStatus defines the observed state of CIPool
@@ -80,6 +83,7 @@ type CIPoolStatus struct {
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="The current state"
 //+kubebuilder:printcolumn:name="Size",type="integer",JSONPath=".status.size",description="The current size of the pool"
 //+kubebuilder:printcolumn:name="Req Size",type="integer",JSONPath=".spec.size",description="The requested size of the pool"
+//+kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="The type of the pool"
 
 // CIPool is the Schema for the cipools API
 type CIPool struct {

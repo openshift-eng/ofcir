@@ -226,7 +226,7 @@ func (r *CIPoolReconciler) createCIResource(pool *ofcirv1.CIPool, cirNo int, log
 			},
 			State: ofcirv1.StateNone,
 			Extra: "",
-			Type:  ofcirv1.TypeCIHost,
+			Type:  pool.Spec.Type,
 		},
 	}
 

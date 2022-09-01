@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sort"
 
@@ -12,16 +13,18 @@ import (
 )
 
 type acquireCmd struct {
-	context   *gin.Context
-	clientset *ofcirclientv1.OfcirV1Client
-	namespace string
+	context      *gin.Context
+	clientset    *ofcirclientv1.OfcirV1Client
+	namespace    string
+	resourceType ofcirv1.CIResourceType
 }
 
-func NewAcquireCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns string) command {
+func NewAcquireCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns string, resourceType string) command {
 	return &acquireCmd{
-		context:   c,
-		clientset: clientset,
-		namespace: ns,
+		context:      c,
+		clientset:    clientset,
+		namespace:    ns,
+		resourceType: ofcirv1.CIResourceType(resourceType),
 	}
 }
 
@@ -34,7 +37,14 @@ func (c *acquireCmd) Run() error {
 
 	poolsByName := make(map[string]ofcirv1.CIPool)
 	for _, p := range pools.Items {
-		poolsByName[p.Name] = p
+		if p.Spec.Type == c.resourceType {
+			poolsByName[p.Name] = p
+		}
+	}
+
+	if len(poolsByName) == 0 {
+		c.context.String(http.StatusNotFound, fmt.Sprintf("No available pool found of type %v", c.resourceType))
+		return nil
 	}
 
 	allCirs, err := c.clientset.CIResources(c.namespace).List(context.Background(), v1.ListOptions{})
@@ -45,7 +55,12 @@ func (c *acquireCmd) Run() error {
 	var cirs, fallbacks []ofcirv1.CIResource
 
 	for _, r := range allCirs.Items {
-		pool := poolsByName[r.Spec.PoolRef.Name]
+		pool, ok := poolsByName[r.Spec.PoolRef.Name]
+		// This cir belongs to a filtered pool, let's skip it
+		if !ok {
+			continue
+		}
+
 		if pool.Spec.Priority < 0 {
 			fallbacks = append(fallbacks, r)
 		} else {
