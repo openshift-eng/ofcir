@@ -106,3 +106,7 @@ type CIPoolList struct {
 func init() {
 	SchemeBuilder.Register(&CIPool{}, &CIPoolList{})
 }
+
+func (c CIPool) IsFallbackPool() bool {
+	return c.Spec.Priority == -1
+}

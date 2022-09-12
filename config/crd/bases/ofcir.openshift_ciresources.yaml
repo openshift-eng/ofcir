@@ -26,6 +26,10 @@ spec:
       jsonPath: .status.state
       name: State
       type: string
+    - description: Requested state
+      jsonPath: .spec.state
+      name: Req State
+      type: string
     - description: Pool owning the current resource
       jsonPath: .spec.poolRef.name
       name: Pool
@@ -84,6 +88,10 @@ spec:
             properties:
               address:
                 description: Public IPv4 address
+                type: string
+              extra:
+                description: This field may contain extra data that may vary depending
+                  on the specific resource type used
                 type: string
               lastUpdated:
                 description: LastUpdated identifies when this status was last observed.

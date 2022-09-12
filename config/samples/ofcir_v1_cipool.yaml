@@ -5,12 +5,31 @@ kind: CIPool
 metadata:
   name: cipool-fallback
 spec:
-  provider: fake-provider
+  provider: libvirt
   priority: -1
   size: 2
   timeout: '4h'
   state: available
   type: host
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cipool-fallback-secret
+type: Opaque
+stringData:
+  config: |
+    {
+      "pool": "default",
+      "volume": 20,
+      "backing_store": "/tests/fedora-coreos-36.20220806.3.0-qemu.x86_64.qcow2",
+      "memory": 4,
+      "cpus": 2,
+      "bridge": "virbr0",
+      "ignition": "/tests/coreos.ign"
+    }
 
 ---
 
@@ -38,10 +57,10 @@ stringData:
     {
       "pool": "default",
       "volume": 20,
-      "backing_store": "fedora-coreos-36.20220806.3.0-qemu.x86_64.qcow2",
+      "backing_store": "/tests/fedora-coreos-36.20220806.3.0-qemu.x86_64.qcow2",
       "memory": 4,
       "cpus": 2,
       "bridge": "virbr0",
-      "ignition": "coreos.ign"
+      "ignition": "/tests/coreos.ign"
     }
 
