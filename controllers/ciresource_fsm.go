@@ -179,16 +179,16 @@ func (f *CIResourceFSM) handleStateCleaning(context CIResourceFSMContext) (time.
 
 	// If it's a fallback resource, let's clean and release it immediately
 	if context.CIPool.IsFallbackPool() {
-		context.CIResource.Status.Address = ""
-		context.CIResource.Status.Extra = ""
-		context.CIResource.Status.ProviderInfo = ""
-		context.CIResource.Status.ResourceId = ""
-
 		if err := context.Provider.Release(context.CIResource.Status.ResourceId); err != nil {
 			if !errors.As(err, &providers.ResourceNotFoundError{}) {
 				return defaultCIPoolRetryDelay, err
 			}
 		}
+
+		context.CIResource.Status.Address = ""
+		context.CIResource.Status.Extra = ""
+		context.CIResource.Status.ProviderInfo = ""
+		context.CIResource.Status.ResourceId = ""
 	} else if err := context.Provider.Clean(context.CIResource.Status.ResourceId); err != nil {
 		return defaultCIPoolRetryDelay, err
 	}
