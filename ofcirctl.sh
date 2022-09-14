@@ -4,7 +4,7 @@
 
 if [ $# -lt 1 ]; then
     echo "Please specify at least one command:"
-    echo " - acquire"
+    echo " - acquire <type>"
     echo " - status <cir-id>"
     echo " - release <cir-id>"
     echo " - change-state <cir-id> <state>"
@@ -15,7 +15,10 @@ fi
 
 case $1 in
     acquire)
-        res=$(curl -s -X POST http://localhost:8087/v1/ofcir)
+        if [ $# -eq 2 ]; then
+            type="?type=$2"
+        fi
+        res=$(curl -s -X POST http://localhost:8087/v1/ofcir${type})
         echo $res
         ;;
 

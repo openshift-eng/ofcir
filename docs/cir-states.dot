@@ -1,0 +1,28 @@
+digraph CirStates {
+    node [fontname = "Droid Sans Mono"];
+    node[ style="filled" color=black fillcolor=lightyellow]
+
+    none[shape="point", width=0.2 fillcolor=black]
+    available[fontsize="20p"]
+    provisioning[label=<<font>provisioning</font><br/> <font point-size="8p" color="darkgreen">provider.Acquire()</font>>]    
+    delete[label=<<font>delete</font><br/> <font point-size="8p" color="darkgreen">provider.Release()</font>>]
+    "provisioning wait"[label=<<font>provisioning wait</font><br/> <font point-size="8p" color="darkgreen">provider.AcquireCompleted()</font>>]
+    cleaning[label=<<font>cleaning</font><br/> <font point-size="8p" color="darkgreen">provider.Clean()</font>>]
+    "clean wait"[label=<<font>clean wait</font><br/> <font point-size="8p" color="darkgreen">provider.CleanCompleted()/Release()</font>>]
+
+    none -> provisioning;
+    provisioning -> "provisioning wait";
+    provisioning -> available[color="darkgreen" penwidth=1.75]
+    "provisioning wait" -> provisioning;
+    "provisioning wait" -> available;
+    available -> maintenance[label="spec.state=maintenance" fontsize="8p" fontcolor="blue"];
+    available -> delete;
+    available -> "in use"[label="spec.state=inuse" fontsize="8p" fontcolor="blue"]
+    maintenance -> available[label="spec.state=available" fontsize="8p" fontcolor="blue"]
+    maintenance -> delete
+    "in use" -> cleaning[label="spec.state=available" fontsize="8p" fontcolor="blue"]
+    "in use" -> provisioning[color="darkgreen" penwidth=1.75]
+    cleaning -> "clean wait"
+    "clean wait" -> cleaning
+    "clean wait" -> available
+}

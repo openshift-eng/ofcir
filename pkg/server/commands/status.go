@@ -52,11 +52,14 @@ func (c *statusCmd) Run() error {
 	}
 
 	c.context.JSON(http.StatusOK, gin.H{
-		"name":     r.Name,
-		"ip":       r.Status.Address,
-		"status":   r.Status.State,
-		"pool":     pool.Name,
-		"provider": pool.Spec.Provider,
+		"name":         r.Name,
+		"pool":         pool.Name,
+		"provider":     pool.Spec.Provider,
+		"providerInfo": r.Status.ProviderInfo,
+		"type":         r.Spec.Type,
+		"ip":           r.Status.Address,
+		"extra":        r.Status.Extra,
+		"status":       r.Status.State,
 	})
 
 	return nil

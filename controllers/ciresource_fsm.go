@@ -29,7 +29,8 @@ func NewCIResourceFSM(logger logr.Logger) *CIResourceFSM {
 
 	fsm.State(ofcirv1.StateProvisioning,
 		fsm.handleStateProvisioning,
-		Transition("on-provisioning-requested", ofcirv1.StateProvisioningWait))
+		Transition("on-provisioning-requested", ofcirv1.StateProvisioningWait),
+		Transition("fallback-available", ofcirv1.StateAvailable))
 
 	fsm.State(ofcirv1.StateProvisioningWait,
 		fsm.handleStateProvisioningWait,
@@ -48,7 +49,8 @@ func NewCIResourceFSM(logger logr.Logger) *CIResourceFSM {
 
 	fsm.State(ofcirv1.StateInUse,
 		fsm.handleStateInUse,
-		Transition("released", ofcirv1.StateCleaning))
+		Transition("released", ofcirv1.StateCleaning),
+		Transition("fallback-provisioning", ofcirv1.StateProvisioning))
 
 	fsm.State(ofcirv1.StateCleaning,
 		fsm.handleStateCleaning,
@@ -62,25 +64,6 @@ func NewCIResourceFSM(logger logr.Logger) *CIResourceFSM {
 		fsm.handleStateDelete)
 
 	return fsm
-}
-
-func (f *CIResourceFSM) handleStateDelete(context CIResourceFSMContext) (time.Duration, error) {
-
-	f.logger.Info("removing resource", "Id", context.CIResource.Status.ResourceId)
-
-	if controllerutil.ContainsFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer) {
-		if err := context.Provider.Release(context.CIResource.Status.ResourceId); err != nil {
-			if !errors.As(err, &providers.ResourceNotFoundError{}) {
-				return defaultCIPoolRetryDelay, err
-			}
-		}
-
-		controllerutil.RemoveFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer)
-		return f.UpdateResourceOnly()
-	}
-
-	//no update
-	return defaultCIPoolRetryDelay, nil
 }
 
 func (f *CIResourceFSM) handleStateNone(context CIResourceFSMContext) (time.Duration, error) {
@@ -99,13 +82,19 @@ func (f *CIResourceFSM) handleStateNone(context CIResourceFSMContext) (time.Dura
 
 func (f *CIResourceFSM) handleStateProvisioning(context CIResourceFSMContext) (time.Duration, error) {
 
+	// If a fallback resource is not requested then let's move it directly to the available state,
+	// otherwise a normal provisioning phase is kicked off
+	if context.CIPool.IsFallbackPool() && context.CIResource.Spec.State != ofcirv1.StateInUse {
+		return f.TriggerEvent("fallback-available")
+	}
+
 	resource, err := context.Provider.Acquire()
 	if err != nil {
 		return 0, err
 	}
 
 	context.CIResource.Status.ResourceId = resource.Id
-	context.CIResource.Status.ProviderInfo = resource.Metadata
+	context.CIResource.Status.ProviderInfo = context.CIPool.Spec.ProviderInfo
 	f.logger.Info("provisioning new resource", "Id", resource.Id)
 
 	return f.TriggerEvent("on-provisioning-requested")
@@ -120,7 +109,7 @@ func (f *CIResourceFSM) handleStateProvisioningWait(context CIResourceFSMContext
 
 	if isReady {
 		context.CIResource.Status.Address = resource.Address
-		context.CIResource.Status.ProviderInfo = resource.Metadata
+		context.CIResource.Status.Extra = resource.Metadata
 
 		f.logger.Info("resource was provisioned", "Id", context.CIResource.Status.ResourceId, "Address", context.CIResource.Status.Address)
 		f.TriggerEvent("on-provisioning-complete")
@@ -176,6 +165,11 @@ func (f *CIResourceFSM) handleStateInUse(context CIResourceFSMContext) (time.Dur
 	switch context.CIResource.Spec.State {
 	case ofcirv1.StateAvailable:
 		return f.TriggerEvent("released")
+	case ofcirv1.StateInUse:
+		// A fallback resource has been requested, so it must be provisioned
+		if context.CIPool.IsFallbackPool() && context.CIResource.Status.Address == "" {
+			return f.TriggerEvent("fallback-provisioning")
+		}
 	}
 
 	return defaultCirRetryDelay, nil
@@ -183,13 +177,29 @@ func (f *CIResourceFSM) handleStateInUse(context CIResourceFSMContext) (time.Dur
 
 func (f *CIResourceFSM) handleStateCleaning(context CIResourceFSMContext) (time.Duration, error) {
 
-	if err := context.Provider.Clean(context.CIResource.Status.ResourceId); err != nil {
+	// If it's a fallback resource, let's clean and release it immediately
+	if context.CIPool.IsFallbackPool() {
+		context.CIResource.Status.Address = ""
+		context.CIResource.Status.Extra = ""
+		context.CIResource.Status.ProviderInfo = ""
+		context.CIResource.Status.ResourceId = ""
+
+		if err := context.Provider.Release(context.CIResource.Status.ResourceId); err != nil {
+			if !errors.As(err, &providers.ResourceNotFoundError{}) {
+				return defaultCIPoolRetryDelay, err
+			}
+		}
+	} else if err := context.Provider.Clean(context.CIResource.Status.ResourceId); err != nil {
 		return defaultCIPoolRetryDelay, err
 	}
 	return f.TriggerEvent("on-cleaning-requested")
 }
 
 func (f *CIResourceFSM) handleStateCleaningWait(context CIResourceFSMContext) (time.Duration, error) {
+
+	if context.CIPool.IsFallbackPool() {
+		return f.TriggerEvent("on-cleaning-complete")
+	}
 
 	isCleaned, err := context.Provider.CleanCompleted(context.CIResource.Status.ResourceId)
 	if err != nil {
@@ -203,6 +213,25 @@ func (f *CIResourceFSM) handleStateCleaningWait(context CIResourceFSMContext) (t
 
 	f.logger.Info("waiting for resource to be cleaned", "Id", context.CIResource.Status.ResourceId)
 	return defaultCirProvisioningWaitDelay, nil
+}
+
+func (f *CIResourceFSM) handleStateDelete(context CIResourceFSMContext) (time.Duration, error) {
+
+	f.logger.Info("removing resource", "Id", context.CIResource.Status.ResourceId)
+
+	if controllerutil.ContainsFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer) {
+		if err := context.Provider.Release(context.CIResource.Status.ResourceId); err != nil {
+			if !errors.As(err, &providers.ResourceNotFoundError{}) {
+				return defaultCIPoolRetryDelay, err
+			}
+		}
+
+		controllerutil.RemoveFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer)
+		return f.UpdateResourceOnly()
+	}
+
+	//no update
+	return defaultCIPoolRetryDelay, nil
 }
 
 // ----------------------------------------------------------------------------

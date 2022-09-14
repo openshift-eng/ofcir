@@ -86,8 +86,8 @@ func (o *OfcirAPI) handleAcquireCir(c *gin.Context) {
 	o.Lock()
 	defer o.Unlock()
 
-	//poolType := c.DefaultQuery("type", string(ofcirv1.TypeCIHost))
-	cmd := commands.NewAcquireCmd(c, o.clientset, o.namespace)
+	resourceType := c.DefaultQuery("type", string(ofcirv1.TypeCIHost))
+	cmd := commands.NewAcquireCmd(c, o.clientset, o.namespace, resourceType)
 	if err := cmd.Run(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"msg": err.Error(),

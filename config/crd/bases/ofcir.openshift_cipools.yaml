@@ -38,6 +38,10 @@ spec:
       jsonPath: .spec.size
       name: Req Size
       type: integer
+    - description: The type of the pool
+      jsonPath: .spec.type
+      name: Type
+      type: string
     name: v1
     schema:
       openAPIV3Schema:
@@ -79,12 +83,16 @@ spec:
                 description: Specify how long a CIR instance will be allowed to remain
                   in the inuse state
                 type: string
+              type:
+                description: The type of the resources managed by the pool
+                type: string
             required:
             - priority
             - provider
             - size
             - state
             - timeout
+            - type
             type: object
           status:
             description: CIPoolStatus defines the observed state of CIPool
