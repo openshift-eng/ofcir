@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.17 as builder
+FROM golang:1.17-alpine as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -12,16 +12,21 @@ RUN go mod download
 # Copy the go source
 COPY main.go main.go
 COPY api/ api/
+COPY cmd/ cmd/
 COPY controllers/ controllers/
+COPY pkg/ pkg/
 
-# Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
+# Build the operator
+RUN apk add libc-dev gcc
+RUN apk add libvirt-dev
+RUN go build -a -o ofcir-operator main.go
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+# Build the api server
+RUN CGO_ENABLED=0 go build -a -o ofcir-api cmd/ofcir-api/main.go
+
+FROM redhat/ubi8
 WORKDIR /
-COPY --from=builder /workspace/manager .
-USER 65532:65532
+COPY --from=builder /workspace/ofcir-operator .
+COPY --from=builder /workspace/ofcir-api .
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["/ofcir-api"]
