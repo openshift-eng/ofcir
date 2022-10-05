@@ -12,6 +12,7 @@ type ProviderType string
 const (
 	ProviderDummy   ProviderType = "fake-provider"
 	ProviderLibvirt ProviderType = "libvirt"
+	ProviderIronic  ProviderType = "ironic"
 )
 
 func NewProvider(pool *ofcirv1.CIPool, poolSecret *v1.Secret) (Provider, error) {
@@ -21,6 +22,8 @@ func NewProvider(pool *ofcirv1.CIPool, poolSecret *v1.Secret) (Provider, error) 
 		return DummyProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data), nil
 	case ProviderLibvirt:
 		return LibvirtProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data)
+	case ProviderIronic:
+		return IronicProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data)
 	default:
 		return nil, fmt.Errorf("unknown provider type: %s", pool.Spec.Provider)
 	}
