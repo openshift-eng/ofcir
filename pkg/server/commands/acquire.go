@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"sort"
 
@@ -67,6 +68,8 @@ func (c *acquireCmd) Run() error {
 			cirs = append(cirs, r)
 		}
 	}
+
+	rand.Shuffle(len(cirs), func(i, j int) { cirs[i], cirs[j] = cirs[j], cirs[i] })
 
 	sort.SliceStable(cirs, func(i, j int) bool {
 		cir0 := cirs[i]
