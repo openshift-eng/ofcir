@@ -90,7 +90,7 @@ func (f *CIResourceFSM) handleStateProvisioning(context CIResourceFSMContext) (t
 		return f.TriggerEvent("fallback-available")
 	}
 
-	resource, err := context.Provider.Acquire()
+	resource, err := context.Provider.Acquire(context.CIPool.Spec.Size, context.CIPool.Name)
 	if err != nil {
 		return 0, err
 	}
