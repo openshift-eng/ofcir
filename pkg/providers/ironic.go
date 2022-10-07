@@ -10,6 +10,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/baremetal/httpbasic"
 	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
 	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/openshift/ofcir/pkg/utils"
 	"go.etcd.io/etcd/pkg/transport"
 )
 
@@ -112,6 +113,11 @@ func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
 
 	res.Address, _ = node.Extra["ip"].(string)
 	res.Metadata, _ = node.Extra["data"].(string)
+
+	// Hold back on setting nodes to Available until ssh is available
+	if !utils.IsPortOpen(res.Address, "22") {
+		return false, res, nil
+	}
 	return true, res, nil
 }
 
