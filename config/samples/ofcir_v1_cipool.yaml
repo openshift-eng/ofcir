@@ -5,7 +5,7 @@ kind: CIPool
 metadata:
   name: cipool-fallback
 spec:
-  provider: libvirt
+  provider: fake-provider
   priority: -1
   size: 2
   timeout: '4h'
@@ -22,13 +22,32 @@ type: Opaque
 stringData:
   config: |
     {
-      "pool": "default",
-      "volume": 20,
-      "backing_store": "/tests/fedora-coreos-36.20220806.3.0-qemu.x86_64.qcow2",
-      "memory": 4,
-      "cpus": 2,
-      "bridge": "virbr0",
-      "ignition": "/tests/coreos.ign"
+    }
+
+---
+
+apiVersion: ofcir.openshift/v1
+kind: CIPool
+metadata:
+  name: cipool-fake
+spec:
+  provider: fake-provider
+  priority: 0
+  size: 2
+  timeout: '4h'
+  state: available
+  type: host
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cipool-fake-secret
+type: Opaque
+stringData:
+  config: |
+    {
     }
 
 ---
@@ -40,7 +59,7 @@ metadata:
 spec:
   provider: libvirt
   priority: 0
-  size: 2
+  size: 0
   timeout: '4h'
   state: available
   type: host
