@@ -12,7 +12,7 @@ import (
 func TestDeleteEmptyPool(t *testing.T) {
 
 	testenv.Test(t, features.New("delete an empty pool").
-		Setup(ofcirSetup("pool-empty")).
+		Setup(ofcirSetup("pool-empty", "dummy")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources("ofcir-system")
@@ -23,14 +23,14 @@ func TestDeleteEmptyPool(t *testing.T) {
 			waitForCIRsDelete(t, r, cirs)
 			waitForPoolDelete(t, r, pool)
 			return ctx
-		}).Feature(),
+		}).Teardown(ofcirTeardown()).Feature(),
 	)
 }
 
 func TestDeletePoolWithOnlyAvailableResources(t *testing.T) {
 
 	testenv.Test(t, features.New("delete a pool with availabe cirs").
-		Setup(ofcirSetup("pool-with-2-cirs")).
+		Setup(ofcirSetup("pool-with-2-cirs", "dummy")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources("ofcir-system")
@@ -41,19 +41,20 @@ func TestDeletePoolWithOnlyAvailableResources(t *testing.T) {
 			waitForCIRsDelete(t, r, cirs)
 			waitForPoolDelete(t, r, pool)
 			return ctx
-		}).Feature())
+		}).Teardown(ofcirTeardown()).Feature())
 }
 
 func TestDeletePoolWithResourcesInUse(t *testing.T) {
 
 	testenv.Test(t, features.New("delete a pool with cirs in use").
-		Setup(ofcirSetup("pool-with-2-cirs")).
+		Setup(ofcirSetup("pool-with-2-cirs", "pool-with-2-cirs")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources("ofcir-system")
 			pool, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")
 
-			c := NewOfcirClient(t, cfg)
+			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
+
 			cir := c.TryAcquire()
 
 			deletePool(t, r, pool)
@@ -66,5 +67,5 @@ func TestDeletePoolWithResourcesInUse(t *testing.T) {
 			waitForCIRsDelete(t, r, cirs)
 			waitForPoolDelete(t, r, pool)
 			return ctx
-		}).Feature())
+		}).Teardown(ofcirTeardown()).Feature())
 }

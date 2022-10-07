@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/openshift/ofcir/pkg/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -39,6 +40,11 @@ func (c *releaseCmd) Run() error {
 			return nil
 		}
 		return err
+	}
+
+	if !utils.CanUsePool(c.context, r.Spec.PoolRef.Name) {
+		c.context.AbortWithStatus(http.StatusUnauthorized)
+		return nil
 	}
 
 	switch r.Status.State {

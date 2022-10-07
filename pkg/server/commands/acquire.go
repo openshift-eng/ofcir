@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	ofcirclientv1 "github.com/openshift/ofcir/pkg/server/clientset/v1"
+	"github.com/openshift/ofcir/pkg/utils"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,7 +39,7 @@ func (c *acquireCmd) Run() error {
 
 	poolsByName := make(map[string]ofcirv1.CIPool)
 	for _, p := range pools.Items {
-		if p.Spec.Type == c.resourceType {
+		if (p.Spec.Type == c.resourceType) && utils.CanUsePool(c.context, p.Name) {
 			poolsByName[p.Name] = p
 		}
 	}

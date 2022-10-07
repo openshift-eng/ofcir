@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/openshift/ofcir/pkg/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -38,6 +39,11 @@ func (c *statusCmd) Run() error {
 			return nil
 		}
 		return err
+	}
+
+	if !utils.CanUsePool(c.context, r.Spec.PoolRef.Name) {
+		c.context.AbortWithStatus(http.StatusUnauthorized)
+		return nil
 	}
 
 	pool, err := c.clientset.CIPools(c.namespace).Get(context.Background(), r.Spec.PoolRef.Name, v1.GetOptions{})

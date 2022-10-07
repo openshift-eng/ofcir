@@ -2,7 +2,9 @@ package e2etests
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/stretchr/testify/assert"
@@ -13,11 +15,11 @@ import (
 func TestAcquire(t *testing.T) {
 
 	testenv.Test(t, features.New("resource acquisition").
-		Setup(ofcirSetup("pool-with-2-cirs")).
+		Setup(ofcirSetup("pool-with-2-cirs", "pool-with-2-cirs")).
 		Assess("acquire one resource", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources("ofcir-system")
-			c := NewOfcirClient(t, cfg)
+			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			waitForPoolReady(t, r, "pool-with-2-cirs")
 
@@ -34,11 +36,11 @@ func TestAcquire(t *testing.T) {
 func TestAcquireAllResources(t *testing.T) {
 
 	testenv.Test(t, features.New("resource acquisition").
-		Setup(ofcirSetup("pool-with-2-cirs")).
+		Setup(ofcirSetup("pool-with-2-cirs", "pool-with-2-cirs")).
 		Assess("acquire all resources", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources("ofcir-system")
-			c := NewOfcirClient(t, cfg)
+			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			_, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")
 
@@ -61,11 +63,11 @@ func TestAcquireAllResources(t *testing.T) {
 func TestPoolsPriority(t *testing.T) {
 
 	testenv.Test(t, features.New("resource acquisition with priority").
-		Setup(ofcirSetup("three-pools")).
+		Setup(ofcirSetup("three-pools", "pool-0,pool-1,pool-2")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources("ofcir-system")
-			c := NewOfcirClient(t, cfg)
+			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			waitForsPoolReady(t, r)
 
@@ -78,6 +80,46 @@ func TestPoolsPriority(t *testing.T) {
 			cirInfo = c.TryAcquireCIR()
 			assert.Equal(t, "pool-2", cirInfo.Spec.PoolRef.Name)
 
+			// Fallback resources quickly go through several stages before settling down on "in use"
+			// Wait for things to settle down before so it hits TearDown in a inuse state
+			// waitForCIRState isn't enough because the CIR appears to hit "in use" twice
+			// TODO: Fix in state machine
+			time.Sleep(time.Second * 3)
+			waitForCIRState(t, r, cirInfo, ofcirv1.StateInUse)
+
+			return ctx
+		}).
+		Teardown(ofcirTeardown()).
+		Feature(),
+	)
+}
+
+func TestPoolsToken(t *testing.T) {
+
+	testenv.Test(t, features.New("resource acquisition by token").
+		Setup(ofcirSetup("three-pools", "pool-0")).
+		Assess("blocks when empty token", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			c := NewOfcirClient(t, cfg, "")
+			_, e := c.Acquire()
+			if assert.Error(t, e) {
+				assert.Equal(t, fmt.Errorf("%q", "401 Unauthorized"), e)
+			}
+			return ctx
+		}).
+		Assess("can only get cir from authorized pool", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+
+			r := cfg.Client().Resources("ofcir-system")
+			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
+
+			waitForsPoolReady(t, r)
+
+			cirInfo := c.TryAcquireCIR()
+			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
+
+			_, e := c.Acquire()
+			if assert.Error(t, e) {
+				assert.Equal(t, fmt.Errorf("%q", "No available resource found"), e)
+			}
 			return ctx
 		}).
 		Teardown(ofcirTeardown()).
@@ -87,10 +129,10 @@ func TestPoolsPriority(t *testing.T) {
 
 func TestAcquireDurationResources(t *testing.T) {
 	testenv.Test(t, features.New("resource acquisition").
-		Setup(ofcirSetup("pool-duration")).
+		Setup(ofcirSetup("pool-duration", "pool-duration")).
 		Assess("acquire a resources with short duration", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			r := cfg.Client().Resources("ofcir-system")
-			c := NewOfcirClient(t, cfg)
+			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			waitForPoolReady(t, r, "pool-duration")
 
