@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.17-alpine as builder
+FROM golang:1.17-alpine3.16 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -19,12 +19,17 @@ COPY pkg/ pkg/
 # Build the operator
 RUN apk add libc-dev gcc
 RUN apk add libvirt-dev
-RUN go build -a -o ofcir-operator main.go
+RUN CGO_ENABLED=1 go build -a -o ofcir-operator main.go
 
 # Build the api server
 RUN CGO_ENABLED=0 go build -a -o ofcir-api cmd/ofcir-api/main.go
 
-FROM redhat/ubi8
+# Cleanup 
+FROM alpine:3.16
+
+RUN apk add libc-dev gcc
+RUN apk add libvirt-dev
+
 WORKDIR /
 COPY --from=builder /workspace/ofcir-operator .
 COPY --from=builder /workspace/ofcir-api .

@@ -40,9 +40,9 @@ type CIResourceReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=ofcir.openshift,resources=ciresources,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ofcir.openshift,resources=ciresources/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ofcir.openshift,resources=ciresources/finalizers,verbs=update
+//+kubebuilder:rbac:groups=ofcir.openshift,namespace=ofcir-system,resources=ciresources,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=ofcir.openshift,namespace=ofcir-system,resources=ciresources/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=ofcir.openshift,namespace=ofcir-system,resources=ciresources/finalizers,verbs=update
 
 // Reconcile handles changes to the CIResource type
 func (r *CIResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
