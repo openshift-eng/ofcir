@@ -25,14 +25,15 @@ spec:
         control-plane: controller-manager
     spec:
       securityContext:
-        runAsNonRoot: true
+        runAsUser: 1001
       containers:
       - command:
-        - /manager
+        - /ofcir-operator
         args:
         - --leader-elect
-        image: controller:latest
-        name: manager
+        image: ofcir.io/ofcir:latest
+        imagePullPolicy: IfNotPresent
+        name: ofcir-operator
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:
@@ -47,6 +48,25 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+      # - command:
+      #   - /ofcir-api
+      #   image: ofcir.io/ofcir:latest
+      #   imagePullPolicy: IfNotPresent
+      #   name: ofcir-api
+      #   securityContext:
+      #     allowPrivilegeEscalation: false
+      #   livenessProbe:
+      #     httpGet:
+      #       path: /healthz
+      #       port: 8082
+      #     initialDelaySeconds: 15
+      #     periodSeconds: 20
+      #   readinessProbe:
+      #     httpGet:
+      #       path: /readyz
+      #       port: 8082
+      #     initialDelaySeconds: 5
+      #     periodSeconds: 10
         # TODO(user): Configure the resources accordingly based on the project requirements.
         # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
         resources:

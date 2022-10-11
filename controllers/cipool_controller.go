@@ -38,6 +38,9 @@ import (
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 )
 
+// Additional permissions required by the controller
+//+kubebuilder:rbac:groups="",namespace=ofcir-system,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+
 const (
 	defaultCIPoolRetryDelay = time.Minute * 1
 )
@@ -48,9 +51,9 @@ type CIPoolReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=ofcir.openshift,resources=cipools,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ofcir.openshift,resources=cipools/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ofcir.openshift,resources=cipools/finalizers,verbs=update
+//+kubebuilder:rbac:groups=ofcir.openshift,namespace=ofcir-system,resources=cipools,verbs=get;list;watch;create;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups=ofcir.openshift,namespace=ofcir-system,resources=cipools/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=ofcir.openshift,namespace=ofcir-system,resources=cipools/finalizers,verbs=update
 
 // Reconcile handles changes to the CIPool type
 func (r *CIPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

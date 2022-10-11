@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -54,6 +55,8 @@ func main() {
 	var probeAddr string
 	var webhookPort int
 
+	fmt.Println("*")
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8085", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8086", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -70,12 +73,14 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   webhookPort,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "7c25506c.openshift",
+		Scheme:                  scheme,
+		MetricsBindAddress:      metricsAddr,
+		Port:                    webhookPort,
+		HealthProbeBindAddress:  probeAddr,
+		LeaderElection:          enableLeaderElection,
+		LeaderElectionID:        "7c25506c.openshift",
+		LeaderElectionNamespace: "ofcir-system",
+		Namespace:               "ofcir-system",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

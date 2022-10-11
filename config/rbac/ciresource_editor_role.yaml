@@ -1,8 +1,9 @@
 # permissions for end users to edit ciresources.
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: ciresource-editor-role
+  namespace: system
 rules:
 - apiGroups:
   - ofcir.openshift
