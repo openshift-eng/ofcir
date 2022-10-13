@@ -123,7 +123,9 @@ generate-deploy-manifests: $(DEPLOY_MANIFESTS_DIR) manifests kustomize ## Deploy
 .PHONY: test-deploy
 test-deploy: generate-deploy-manifests
 	minikube image build -t ofcir.io/ofcir:latest .
-	kubectl delete deployment ofcir-controller-manager
+	kubectl delete deployment ofcir-controller-manager || true
+	kubectl delete svc ofcir-service || true
+
 	kubectl apply -f $(DEPLOY_MANIFESTS_DIR)/ofcir-operator.yaml
 
 ##@ Build Dependencies
