@@ -10,33 +10,67 @@ import (
 	"github.com/openshift/ofcir/pkg/providers"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func TestCIResourceReconciler_Reconcile(t *testing.T) {
 
+	type cirStateEvent func(client client.Client, cir *ofcirv1.CIResource)
+
 	tests := []struct {
 		name   string
 		cipool *cipoolBuilder
 		cir    *cirBuilder
 
-		waitUntil ofcirv1.CIResourceState
+		onStateChange map[ofcirv1.CIResourceState]cirStateEvent
+		waitUntil     func(cir *ofcirv1.CIResource) bool
 
 		expectedStates []ofcirv1.CIResourceState
 		expectedError  error
 	}{
 		{
-			name:      "new",
-			cipool:    cipool(),
-			cir:       cir("0"),
-			waitUntil: ofcirv1.StateAvailable,
+			name:   "new",
+			cipool: cipool().name("default"),
+			cir:    cir("0").pool("default"),
 
+			waitUntil: func(cir *ofcirv1.CIResource) bool {
+				return cir.Status.State == ofcirv1.StateAvailable
+			},
 			expectedStates: []ofcirv1.CIResourceState{
 				ofcirv1.StateNone, ofcirv1.StateProvisioning, ofcirv1.StateProvisioningWait, ofcirv1.StateAvailable,
+			},
+		},
+		{
+			name:   "fallback-resource-skips-provisiongwait",
+			cipool: cipool().name("fallback").priority(-1),
+			cir:    cir("0").pool("fallback"),
+
+			waitUntil: func(cir *ofcirv1.CIResource) bool {
+				return cir.Status.State == ofcirv1.StateAvailable
+			},
+			expectedStates: []ofcirv1.CIResourceState{
+				ofcirv1.StateNone, ofcirv1.StateProvisioning, ofcirv1.StateAvailable,
+			},
+		},
+		{
+			name:   "fallback-resource-deletion",
+			cipool: cipool().name("fallback").priority(-1),
+			cir:    cir("0").pool("fallback"),
+
+			onStateChange: map[ofcirv1.CIResourceState]cirStateEvent{
+				ofcirv1.StateAvailable: func(client client.Client, cir *ofcirv1.CIResource) {
+					client.Delete(context.TODO(), cir)
+				},
+			},
+
+			waitUntil: func(cir *ofcirv1.CIResource) bool {
+				return cir == nil
 			},
 		},
 	}
@@ -48,7 +82,7 @@ func TestCIResourceReconciler_Reconcile(t *testing.T) {
 			_ = corev1.AddToScheme(s)
 
 			cipool := tt.cipool.build()
-			cir := tt.cir.pool(cipool).build()
+			cir := tt.cir.build()
 
 			cipoolSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -72,7 +106,6 @@ func TestCIResourceReconciler_Reconcile(t *testing.T) {
 
 			var stateTransitions []ofcirv1.CIResourceState
 			var latestErr error
-			var latestCir ofcirv1.CIResource
 
 			maxReconciles := 20
 			counter := 0
@@ -80,20 +113,30 @@ func TestCIResourceReconciler_Reconcile(t *testing.T) {
 			for counter = 0; counter < maxReconciles; counter++ {
 				_, latestErr = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: cirKey})
 
+				var latestCir ofcirv1.CIResource
 				err := fakeClient.Get(context.TODO(), cirKey, &latestCir)
-				assert.NoError(t, err)
+				if err == nil {
+					if len(stateTransitions) == 0 {
+						stateTransitions = append(stateTransitions, latestCir.Status.State)
+					} else if stateTransitions[len(stateTransitions)-1] != latestCir.Status.State {
+						stateTransitions = append(stateTransitions, latestCir.Status.State)
 
-				if len(stateTransitions) == 0 {
-					stateTransitions = append(stateTransitions, latestCir.Status.State)
-				} else if stateTransitions[len(stateTransitions)-1] != latestCir.Status.State {
-					stateTransitions = append(stateTransitions, latestCir.Status.State)
+						if action, found := tt.onStateChange[latestCir.Status.State]; found {
+							action(fakeClient, &latestCir)
+						}
+					}
 				}
 
-				if latestCir.Status.State == tt.waitUntil {
+				cir := &latestCir
+				if errors.IsNotFound(err) {
+					cir = nil
+				}
+
+				if tt.waitUntil(cir) {
 					break
 				}
 			}
-			assert.Less(t, counter, maxReconciles, fmt.Sprintf("CIResource did not reach the required state. Waiting for state '%s', but got '%s'", tt.waitUntil, latestCir.Status.State))
+			assert.Less(t, counter, maxReconciles, "Too many reconcile loops")
 
 			if tt.expectedError != nil {
 				assert.Equal(t, tt.expectedError, latestErr)
@@ -102,7 +145,10 @@ func TestCIResourceReconciler_Reconcile(t *testing.T) {
 
 				latestCir := ofcirv1.CIResource{}
 				fakeClient.Get(context.TODO(), cirKey, &latestCir)
-				assert.Equal(t, tt.expectedStates, stateTransitions)
+
+				if len(tt.expectedStates) > 0 {
+					assert.Equal(t, tt.expectedStates, stateTransitions)
+				}
 			}
 		})
 	}
@@ -142,8 +188,18 @@ func (cp *cipoolBuilder) build() *ofcirv1.CIPool {
 	return &cp.CIPool
 }
 
+func (cp *cipoolBuilder) name(value string) *cipoolBuilder {
+	cp.Name = value
+	return cp
+}
+
 func (cp *cipoolBuilder) size(s int) *cipoolBuilder {
 	cp.Spec.Size = s
+	return cp
+}
+
+func (cp *cipoolBuilder) priority(value int) *cipoolBuilder {
+	cp.Spec.Priority = value
 	return cp
 }
 
@@ -177,8 +233,8 @@ func (cb *cirBuilder) build() *ofcirv1.CIResource {
 	return &cb.CIResource
 }
 
-func (cb *cirBuilder) pool(p *ofcirv1.CIPool) *cirBuilder {
-	cb.Spec.PoolRef.Name = p.Name
+func (cb *cirBuilder) pool(p string) *cirBuilder {
+	cb.Spec.PoolRef.Name = p
 	return cb
 }
 
