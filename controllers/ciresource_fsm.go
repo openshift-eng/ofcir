@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	fallbackResourceID              = "000-fallback-dummy-000" // dummy ID for fallback resource
 	defaultCirRetryDelay            = time.Minute * 1
 	defaultCirProvisioningWaitDelay = time.Second * 30
 )
@@ -85,6 +86,7 @@ func (f *CIResourceFSM) handleStateProvisioning(context CIResourceFSMContext) (t
 	// If a fallback resource is not requested then let's move it directly to the available state,
 	// otherwise a normal provisioning phase is kicked off
 	if context.CIPool.IsFallbackPool() && context.CIResource.Spec.State != ofcirv1.StateInUse {
+		context.CIResource.Status.ResourceId = fallbackResourceID
 		return f.TriggerEvent("fallback-available")
 	}
 
@@ -167,7 +169,7 @@ func (f *CIResourceFSM) handleStateInUse(context CIResourceFSMContext) (time.Dur
 		return f.TriggerEvent("released")
 	case ofcirv1.StateInUse:
 		// A fallback resource has been requested, so it must be provisioned
-		if context.CIPool.IsFallbackPool() && context.CIResource.Status.Address == "" {
+		if context.CIPool.IsFallbackPool() && context.CIResource.Status.Address == "" && context.CIResource.Status.ResourceId == fallbackResourceID {
 			return f.TriggerEvent("fallback-provisioning")
 		}
 	}
@@ -188,7 +190,7 @@ func (f *CIResourceFSM) handleStateCleaning(context CIResourceFSMContext) (time.
 		context.CIResource.Status.Address = ""
 		context.CIResource.Status.Extra = ""
 		context.CIResource.Status.ProviderInfo = ""
-		context.CIResource.Status.ResourceId = ""
+		context.CIResource.Status.ResourceId = fallbackResourceID
 	} else if err := context.Provider.Clean(context.CIResource.Status.ResourceId); err != nil {
 		return defaultCIPoolRetryDelay, err
 	}
@@ -220,6 +222,13 @@ func (f *CIResourceFSM) handleStateDelete(context CIResourceFSMContext) (time.Du
 	f.logger.Info("removing resource", "Id", context.CIResource.Status.ResourceId)
 
 	if controllerutil.ContainsFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer) {
+
+		// don't call the provider if the resource is a fallback dummy
+		if context.CIPool.IsFallbackPool() && context.CIResource.Status.ResourceId == fallbackResourceID {
+			controllerutil.RemoveFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer)
+			return f.UpdateResourceOnly()
+		}
+
 		if err := context.Provider.Release(context.CIResource.Status.ResourceId); err != nil {
 			if !errors.As(err, &providers.ResourceNotFoundError{}) {
 				return defaultCIPoolRetryDelay, err
