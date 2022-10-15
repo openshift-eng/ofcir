@@ -3,7 +3,6 @@ package providers
 import (
 	"fmt"
 	"sync"
-	"time"
 )
 
 const (
@@ -49,7 +48,6 @@ func (p *dummyProvider) Acquire() (Resource, error) {
 		if i.available {
 			i.available = false
 			p.instances[i.Id] = i
-			time.Sleep(time.Second * 2)
 			return i.Resource, nil
 		}
 	}
@@ -64,8 +62,6 @@ func (p *dummyProvider) AcquireCompleted(id string) (bool, Resource, error) {
 		return false, Resource{}, fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
 	}
 
-	time.Sleep(time.Second * 2)
-
 	return true, resource.Resource, nil
 }
 
@@ -75,7 +71,6 @@ func (p *dummyProvider) Clean(id string) error {
 		return fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
 	}
 
-	time.Sleep(time.Second * 2)
 	return nil
 }
 
@@ -85,7 +80,6 @@ func (p *dummyProvider) CleanCompleted(id string) (bool, error) {
 		return false, fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
 	}
 
-	time.Sleep(time.Second * 2)
 	return true, nil
 }
 
