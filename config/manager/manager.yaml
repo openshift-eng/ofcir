@@ -5,6 +5,22 @@ metadata:
     control-plane: controller-manager
   name: system
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: service
+  namespace: system
+spec:
+  ports:
+  - name: http
+    port: 8087
+    protocol: TCP
+  selector:
+    control-plane: controller-manager
+  type: NodePort
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -48,25 +64,16 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
-      # - command:
-      #   - /ofcir-api
-      #   image: ofcir.io/ofcir:latest
-      #   imagePullPolicy: IfNotPresent
-      #   name: ofcir-api
-      #   securityContext:
-      #     allowPrivilegeEscalation: false
-      #   livenessProbe:
-      #     httpGet:
-      #       path: /healthz
-      #       port: 8082
-      #     initialDelaySeconds: 15
-      #     periodSeconds: 20
-      #   readinessProbe:
-      #     httpGet:
-      #       path: /readyz
-      #       port: 8082
-      #     initialDelaySeconds: 5
-      #     periodSeconds: 10
+      - command:
+        - /ofcir-api
+        image: ofcir.io/ofcir:latest
+        imagePullPolicy: IfNotPresent
+        name: ofcir-api
+        securityContext:
+          allowPrivilegeEscalation: false
+        ports:
+        - containerPort: 8087
+          protocol: TCP
         # TODO(user): Configure the resources accordingly based on the project requirements.
         # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
         resources:

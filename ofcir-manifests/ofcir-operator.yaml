@@ -460,6 +460,22 @@ spec:
   selector:
     control-plane: controller-manager
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: ofcir-service
+  namespace: ofcir-system
+spec:
+  ports:
+  - name: http
+    port: 8087
+    protocol: TCP
+  selector:
+    control-plane: controller-manager
+  type: NodePort
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -475,7 +491,7 @@ spec:
   template:
     metadata:
       annotations:
-        kubectl.kubernetes.io/default-container: ofcir-operator
+        kubectl.kubernetes.io/default-container: manager
       labels:
         control-plane: controller-manager
     spec:
@@ -519,6 +535,16 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+      - command:
+        - /ofcir-api
+        image: ofcir.io/ofcir:latest
+        imagePullPolicy: IfNotPresent
+        name: ofcir-api
+        ports:
+        - containerPort: 8087
+          protocol: TCP
         resources:
           limits:
             cpu: 500m
