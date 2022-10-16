@@ -64,28 +64,41 @@ func waitForPoolReady(cfg *envconf.Config, poolName string) (*ofcirv1.CIPool, *o
 	return &pool, &cirs
 }
 
-func TestCIPool(t *testing.T) {
+func TestDeleteEmptyPool(t *testing.T) {
 
-	testcase := "pool-with-2-cirs"
+	testenv.Test(t,
+		features.New("delete an empty pool").
+			Setup(ofcirSetup("pool-empty")).
+			Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-	f := features.New("pool").
-		Setup(ofcirSetup(testcase)).
-		Assess("delete pool", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+				r := cfg.Client().Resources()
+				pool, cirs := waitForPoolReady(cfg, "pool-empty")
 
-			r := cfg.Client().Resources()
+				r.Delete(context.Background(), pool)
 
-			pool, cirs := waitForPoolReady(cfg, testcase)
+				wait.For(conditions.New(r).ResourcesDeleted(cirs))
+				wait.For(conditions.New(r).ResourceDeleted(pool))
 
-			// Delete the pool
-			r.Delete(context.Background(), pool)
+				return ctx
+			}).Feature(),
+	)
+}
 
-			// Wait until all the resources (and pool) are removed
-			wait.For(conditions.New(r).ResourcesDeleted(cirs))
-			wait.For(conditions.New(r).ResourceDeleted(pool))
+func TestDeletePoolWithOnlyAvailableResources(t *testing.T) {
 
-			return ctx
-		}).Feature()
+	testenv.Test(t,
+		features.New("delete a pool with availabe cirs").
+			Setup(ofcirSetup("pool-with-2-cirs")).
+			Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-	testenv.Test(t, f)
+				r := cfg.Client().Resources()
+				pool, cirs := waitForPoolReady(cfg, "pool-with-2-cirs")
 
+				r.Delete(context.Background(), pool)
+
+				wait.For(conditions.New(r).ResourcesDeleted(cirs))
+				wait.For(conditions.New(r).ResourceDeleted(pool))
+
+				return ctx
+			}).Feature())
 }
