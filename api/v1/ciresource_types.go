@@ -66,7 +66,7 @@ const (
 const (
 	EvictionLabel string = "ofcir/eviction"
 
-	CIResourceFinalizer string = "ofcir.openshift/finalizer"
+	OfcirFinalizer string = "ofcir.openshift/finalizer"
 )
 
 // CIResourceType defines the possible types for a CIResource

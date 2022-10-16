@@ -32,6 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
@@ -69,6 +70,50 @@ func (r *CIPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 		logger.Info("could not get CIPool")
 		return ctrl.Result{RequeueAfter: defaultCIPoolRetryDelay}, nil
+	}
+
+	// Check if pool contains a finalizer when is not under deletion
+	if pool.ObjectMeta.DeletionTimestamp.IsZero() {
+		// Add finalizer if not present
+		if !controllerutil.ContainsFinalizer(pool, ofcirv1.OfcirFinalizer) {
+			logger.Info("Adding finalizer")
+			controllerutil.AddFinalizer(pool, ofcirv1.OfcirFinalizer)
+			if err := r.Update(ctx, pool, &client.UpdateOptions{}); err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, nil
+		}
+	} else {
+		// Delete has been requested
+		cirs := &ofcirv1.CIResourceList{}
+		r.List(context.TODO(), cirs, client.InNamespace(pool.Namespace))
+
+		poolCirs := []ofcirv1.CIResource{}
+		for _, c := range cirs.Items {
+			if c.Spec.PoolRef.Name == pool.Name {
+				poolCirs = append(poolCirs, c)
+			}
+		}
+
+		// Still some resources to be deleted
+		if len(poolCirs) > 0 {
+			_, err = r.deleteCIResources(0, poolCirs, pool.Namespace, logger)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, err
+		}
+
+		// No more resources, pool can be deleted
+		if controllerutil.ContainsFinalizer(pool, ofcirv1.OfcirFinalizer) {
+			controllerutil.RemoveFinalizer(pool, ofcirv1.OfcirFinalizer)
+			logger.Info("Deleting pool")
+			if err := r.Update(ctx, pool, &client.UpdateOptions{}); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		return ctrl.Result{}, nil
 	}
 
 	// Check if a state update is required
@@ -169,51 +214,62 @@ func (r *CIPoolReconciler) manageCIResourcesFor(pool *ofcirv1.CIPool, logger log
 			numCirSelected++
 		}
 	} else {
-		logger.Info("Removing resources from the pool", "Expected", pool.Spec.Size, "Found", len(poolCirs))
-
-		// Select candidates for eviction starting from the newest resources
-		for i := len(poolCirs) - 1; i >= 0; i-- {
-			cir := poolCirs[i]
-
-			switch cir.Status.State {
-			case ofcirv1.StateAvailable, ofcirv1.StateMaintenance, ofcirv1.StateError:
-				labels := cir.GetLabels()
-				if labels == nil {
-					labels = make(map[string]string)
-				}
-				if _, found := labels[ofcirv1.EvictionLabel]; found {
-					continue
-				}
-				logger.Info("CIResource selected for eviction", "Name", cir.Name)
-
-				labels[ofcirv1.EvictionLabel] = "true"
-				cir.SetLabels(labels)
-
-				if err := r.Update(context.TODO(), &cir); err != nil {
-					logger.Error(err, "error while selecting CIResource to be removed, skipping it", "CIResource", cir.Name)
-					continue
-				}
-
-				// Check if enough instances have been selected for eviction
-				numCirSelected++
-
-			default:
-				logger.Info("CIResource ignored for eviction", "CIResource", cir.Name, "State", cir.Status.State)
-			}
-
-			if numCirSelected >= len(poolCirs)-pool.Spec.Size {
-				break
-			}
-		}
-
-		err = r.DeleteAllOf(context.TODO(), &ofcirv1.CIResource{}, client.InNamespace(pool.Namespace), client.MatchingLabels{ofcirv1.EvictionLabel: "true"})
+		numCirSelected, err = r.deleteCIResources(pool.Spec.Size, poolCirs, pool.Namespace, logger)
 		if err != nil {
-			logger.Error(err, "error while batch deleting CIResources")
 			return false, err
 		}
 	}
 
 	return numCirSelected > 0, err
+}
+
+func (r *CIPoolReconciler) deleteCIResources(targetSize int, poolCirs []ofcirv1.CIResource, poolNamespace string, logger logr.Logger) (int, error) {
+	logger.Info("Removing resources from the pool", "Expected", targetSize, "Found", len(poolCirs))
+
+	numCirSelected := 0
+
+	// Select candidates for eviction starting from the newest resources
+	for i := len(poolCirs) - 1; i >= 0; i-- {
+		cir := poolCirs[i]
+
+		switch cir.Status.State {
+		case ofcirv1.StateAvailable, ofcirv1.StateMaintenance, ofcirv1.StateError:
+			labels := cir.GetLabels()
+			if labels == nil {
+				labels = make(map[string]string)
+			}
+			if _, found := labels[ofcirv1.EvictionLabel]; found {
+				continue
+			}
+			logger.Info("CIResource selected for eviction", "Name", cir.Name)
+
+			labels[ofcirv1.EvictionLabel] = "true"
+			cir.SetLabels(labels)
+
+			if err := r.Update(context.TODO(), &cir); err != nil {
+				logger.Error(err, "error while selecting CIResource to be removed, skipping it", "CIResource", cir.Name)
+				continue
+			}
+
+			// Check if enough instances have been selected for eviction
+			numCirSelected++
+
+		default:
+			logger.Info("CIResource ignored for eviction", "CIResource", cir.Name, "State", cir.Status.State)
+		}
+
+		if numCirSelected >= len(poolCirs)-targetSize {
+			break
+		}
+	}
+
+	err := r.DeleteAllOf(context.TODO(), &ofcirv1.CIResource{}, client.InNamespace(poolNamespace), client.MatchingLabels{ofcirv1.EvictionLabel: "true"})
+	if err != nil {
+		logger.Error(err, "error while batch deleting CIResources")
+		return numCirSelected, err
+	}
+
+	return numCirSelected, nil
 }
 
 func (r *CIPoolReconciler) createCIResource(pool *ofcirv1.CIPool, cirNo int, logger logr.Logger) error {

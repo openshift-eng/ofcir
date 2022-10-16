@@ -54,7 +54,7 @@ func TestCIResourceFSMProcess(t *testing.T) {
 			cir: &ofcirv1.CIResource{
 				ObjectMeta: v1.ObjectMeta{
 					Finalizers: []string{
-						ofcirv1.CIResourceFinalizer,
+						ofcirv1.OfcirFinalizer,
 					},
 				},
 				Status: ofcirv1.CIResourceStatus{
