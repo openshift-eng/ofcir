@@ -72,7 +72,11 @@ build: generate fmt vet ## Build manager binary.
 
 .PHONY: unit-tests
 unit-tests: fmt vet
-	go test ./...
+	go test ./controllers/... ./pkg/...
+
+.PHONY: e2e-tests
+e2e-tests: test-deploy
+	go test ./e2e/tests
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
