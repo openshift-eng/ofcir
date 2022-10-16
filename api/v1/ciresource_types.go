@@ -120,6 +120,7 @@ type CIResourceStatus struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:object:generate=true
 //+kubebuilder:resource:shortName=cir
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Address",type="string",JSONPath=".status.address",description="Public IPv4 address"
@@ -138,7 +139,7 @@ type CIResource struct {
 }
 
 //+kubebuilder:object:root=true
-
+//+kubebuilder:object:generate=true
 // CIResourceList contains a list of CIResource
 type CIResourceList struct {
 	metav1.TypeMeta `json:",inline"`
