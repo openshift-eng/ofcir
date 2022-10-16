@@ -2,6 +2,7 @@ package e2etests
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -23,14 +24,15 @@ var (
 
 // Waits until the specified pool reached the desidered size and all of its resources
 // are available
-func waitUntilPoolReady(t *testing.T, cfg *envconf.Config, poolName string) {
+func waitUntilPoolReady(t *testing.T, cfg *envconf.Config, poolName string) *ofcirv1.CIPool {
 	r := cfg.Client().Resources("ofcir-system")
 	ctx := context.Background()
 
+	var cipool ofcirv1.CIPool
 	var lastErr error
+
 	for start := time.Now(); time.Since(start) < defaultWaitTimeout; time.Sleep(defaultWaitPoll) {
 		// Get the pool
-		var cipool ofcirv1.CIPool
 		lastErr = r.Get(ctx, poolName, "ofcir-system", &cipool)
 		if lastErr != nil {
 			if errors.IsNotFound(lastErr) {
@@ -45,7 +47,7 @@ func waitUntilPoolReady(t *testing.T, cfg *envconf.Config, poolName string) {
 		}
 
 		// Wait for the resource to be available
-		cirs := getCIPoolResources(ctx, r, cipool.Name)
+		cirs := getPoolResources(ctx, r, cipool.Name)
 		numCirsAvailable := 0
 		for _, cir := range cirs {
 			if cir.Status.State == ofcirv1.StateAvailable {
@@ -54,15 +56,35 @@ func waitUntilPoolReady(t *testing.T, cfg *envconf.Config, poolName string) {
 		}
 
 		if numCirsAvailable == cipool.Spec.Size {
-			return
+			return &cipool
 		}
 	}
 
 	t.Logf("pool %s not ready", poolName)
 	t.FailNow()
+
+	return nil
 }
 
-func getCIPoolResources(ctx context.Context, r *resources.Resources, poolName string) []ofcirv1.CIResource {
+func getPool(t *testing.T, cfg *envconf.Config, poolName string) ofcirv1.CIPool {
+	r := cfg.Client().Resources("ofcir-system")
+
+	var pool ofcirv1.CIPool
+	err := r.Get(context.Background(), poolName, "ofcir-system", &pool)
+
+	assert.NoError(t, err)
+	return pool
+}
+
+func deletePool(t *testing.T, cfg *envconf.Config, pool *ofcirv1.CIPool) {
+	r := cfg.Client().Resources("ofcir-system")
+
+	err := r.Delete(context.Background(), pool)
+
+	assert.NoError(t, err)
+}
+
+func getPoolResources(ctx context.Context, r *resources.Resources, poolName string) []ofcirv1.CIResource {
 
 	cirs := []ofcirv1.CIResource{}
 
@@ -97,35 +119,55 @@ func waitUntil(t *testing.T, cfg *envconf.Config, f func(context.Context, *resou
 	t.FailNow()
 }
 
+func ofcirSetup(testDataFile string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		r, err := resources.New(cfg.Client().RESTConfig())
+		assert.NoError(t, err)
+
+		err = decoder.DecodeEachFile(ctx, os.DirFS("testdata"), fmt.Sprintf("%s.yaml", testDataFile), decoder.CreateHandler(r))
+		assert.NoError(t, err)
+
+		return ctx
+	}
+}
+
+func ofcirTeardown(testDataFile string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		r, err := resources.New(cfg.Client().RESTConfig())
+		assert.NoError(t, err)
+
+		err = decoder.DecodeEachFile(ctx, os.DirFS("testdata"), fmt.Sprintf("%s.yaml", testDataFile), decoder.DeleteHandler(r))
+		assert.NoError(t, err)
+
+		return ctx
+	}
+}
+
 func TestCIPool(t *testing.T) {
 
-	testdata := os.DirFS("testdata")
-
 	f := features.New("pool").
-		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			r, err := resources.New(cfg.Client().RESTConfig())
-			assert.NoError(t, err)
+		Setup(ofcirSetup("pool-with-2-cirs")).
+		Assess("delete pool", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			err = decoder.DecodeEachFile(ctx, testdata, "default_pool.yaml", decoder.CreateHandler(r))
-			assert.NoError(t, err)
+			// Wait until all the pool resources become available
+			pool := waitUntilPoolReady(t, cfg, "pool-with-2-cirs")
 
-			return ctx
-		}).
-		Assess("all pool resources are deleted", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			waitUntilPoolReady(t, cfg, "default")
+			// Delete the pool
+			deletePool(t, cfg, pool)
 
+			// Wait until all the resources are removed
 			waitUntil(t, cfg, func(ctx context.Context, r *resources.Resources) bool {
-				return len(getCIPoolResources(ctx, r, "default")) == 0
+				return len(getPoolResources(ctx, r, "pool-with-2-cirs")) == 0
 			})
 
-			return ctx
-		}).
-		Teardown(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			// r, err := resources.New(cfg.Client().RESTConfig())
-			// assert.NoError(t, err)
+			// Wait until the pool is removed
+			waitUntil(t, cfg, func(ctx context.Context, r *resources.Resources) bool {
 
-			// err = decoder.DecodeEachFile(ctx, testdata, "only_fallback.yaml", decoder.DeleteHandler(r))
-			// assert.NoError(t, err)
+				var pool ofcirv1.CIPool
+				err := r.Get(context.Background(), "pool-with-2-cirs", "ofcir-system", &pool)
+				return errors.IsNotFound(err)
+			})
+
 			return ctx
 		}).Feature()
 

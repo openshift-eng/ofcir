@@ -1,12 +1,12 @@
 apiVersion: ofcir.openshift/v1
 kind: CIPool
 metadata:
-  name: default
+  name: pool-empty
   namespace: ofcir-system
 spec:
   provider: fake-provider
   priority: 0
-  size: 15
+  size: 0
   timeout: '4h'
   state: available
   type: host
