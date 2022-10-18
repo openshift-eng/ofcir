@@ -3,15 +3,10 @@ package e2etests
 import (
 	"context"
 	"testing"
-	"time"
 
-	"gotest.tools/v3/assert"
-	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
-
-	kwait "k8s.io/apimachinery/pkg/util/wait"
 )
 
 func TestDeleteEmptyPool(t *testing.T) {
@@ -20,7 +15,7 @@ func TestDeleteEmptyPool(t *testing.T) {
 		Setup(ofcirSetup("pool-empty")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources()
+			r := cfg.Client().Resources("ofcir-system")
 			pool, cirs := waitForPoolReady(t, r, "pool-empty")
 
 			deletePool(t, r, pool)
@@ -38,7 +33,7 @@ func TestDeletePoolWithOnlyAvailableResources(t *testing.T) {
 		Setup(ofcirSetup("pool-with-2-cirs")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources()
+			r := cfg.Client().Resources("ofcir-system")
 			pool, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")
 
 			deletePool(t, r, pool)
@@ -55,7 +50,7 @@ func TestDeletePoolWithResourcesInUse(t *testing.T) {
 		Setup(ofcirSetup("pool-with-2-cirs")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources()
+			r := cfg.Client().Resources("ofcir-system")
 			pool, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")
 
 			c := NewOfcirClient(t, cfg)
@@ -64,8 +59,7 @@ func TestDeletePoolWithResourcesInUse(t *testing.T) {
 			deletePool(t, r, pool)
 
 			// Wait for some time, to be sure that the pool doesn't get deleted
-			err := wait.For(conditions.New(r).ResourceDeleted(pool), wait.WithTimeout(10*time.Second))
-			assert.Equal(t, kwait.ErrWaitTimeout, err)
+			waitNotFor(t, conditions.New(r).ResourceDeleted(pool), 10)
 
 			c.TryRelease(cir.Name)
 

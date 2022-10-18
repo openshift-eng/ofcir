@@ -10,13 +10,16 @@ import (
 	"net/url"
 	"testing"
 
+	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
 
 type OfcirClient struct {
 	t       *testing.T
+	r       *resources.Resources
 	baseUrl string
 }
 
@@ -40,6 +43,7 @@ func NewOfcirClient(t *testing.T, cfg *envconf.Config) *OfcirClient {
 
 	return &OfcirClient{
 		t:       t,
+		r:       cfg.Client().Resources("ofcir-system"),
 		baseUrl: fmt.Sprintf("http://%s:%d", host, port),
 	}
 }
@@ -65,6 +69,10 @@ func (c *OfcirClient) Acquire() (*OfcirAcquire, error) {
 		return nil, err
 	}
 
+	if r.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%q", body)
+	}
+
 	acquire := &OfcirAcquire{}
 	err = json.Unmarshal(body, acquire)
 	if err != nil {
@@ -78,6 +86,17 @@ func (c *OfcirClient) TryAcquire() *OfcirAcquire {
 	acquire, err := c.Acquire()
 	assert.NoError(c.t, err)
 	return acquire
+}
+
+func (c *OfcirClient) TryAcquireCIR() *ofcirv1.CIResource {
+	acquire, err := c.Acquire()
+	assert.NoError(c.t, err)
+
+	var cir ofcirv1.CIResource
+	err = c.r.Get(context.Background(), acquire.Name, "ofcir-system", &cir)
+	assert.NoError(c.t, err)
+
+	return &cir
 }
 
 type OfcirStatus struct {
@@ -145,4 +164,8 @@ func (c *OfcirClient) TryRelease(id string) string {
 	release, err := c.Release(id)
 	assert.NoError(c.t, err)
 	return release
+}
+
+func (c *OfcirClient) TryReleaseCIR(cir *ofcirv1.CIResource) string {
+	return c.TryRelease(cir.Name)
 }
