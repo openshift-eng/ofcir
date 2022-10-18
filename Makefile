@@ -75,8 +75,8 @@ unit-tests: fmt vet
 	go test ./controllers/... ./pkg/...
 
 .PHONY: e2e-tests
-e2e-tests: test-deploy
-	go test ./e2e/tests
+e2e-tests: 
+	go test ./tests/e2e/...
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.

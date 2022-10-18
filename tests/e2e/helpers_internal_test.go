@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,8 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
+
+	apimachinerywait "k8s.io/apimachinery/pkg/util/wait"
 )
 
 func ofcirSetup(testDataFile string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
@@ -47,7 +50,7 @@ func waitForPoolReady(t *testing.T, r *resources.Resources, poolName string) (*o
 	}
 
 	// Wait until pool reaches the required size
-	err := wait.For(conditions.New(r).ResourceMatch(&pool, func(object k8s.Object) bool {
+	err := waitFor(conditions.New(r).ResourceMatch(&pool, func(object k8s.Object) bool {
 		p := object.(*ofcirv1.CIPool)
 		return p.Status.Size == p.Spec.Size
 	}))
@@ -55,7 +58,7 @@ func waitForPoolReady(t *testing.T, r *resources.Resources, poolName string) (*o
 
 	// Wait until all of the pool resources become available
 	var cirs ofcirv1.CIResourceList
-	err = wait.For(conditions.New(r).ResourceListMatchN(&cirs, pool.Status.Size, func(object k8s.Object) bool {
+	err = waitFor(conditions.New(r).ResourceListMatchN(&cirs, pool.Status.Size, func(object k8s.Object) bool {
 		c := object.(*ofcirv1.CIResource)
 		return c.Spec.PoolRef.Name == pool.Name && c.Status.State == ofcirv1.StateAvailable
 	}))
@@ -65,7 +68,7 @@ func waitForPoolReady(t *testing.T, r *resources.Resources, poolName string) (*o
 }
 
 func waitForPoolDelete(t *testing.T, r *resources.Resources, pool *ofcirv1.CIPool) {
-	err := wait.For(conditions.New(r).ResourceDeleted(pool))
+	err := waitFor(conditions.New(r).ResourceDeleted(pool))
 	assert.NoError(t, err)
 }
 
@@ -75,6 +78,10 @@ func deletePool(t *testing.T, r *resources.Resources, pool *ofcirv1.CIPool) {
 }
 
 func waitForCIRsDelete(t *testing.T, r *resources.Resources, cirs *ofcirv1.CIResourceList) {
-	err := wait.For(conditions.New(r).ResourcesDeleted(cirs))
+	err := waitFor(conditions.New(r).ResourcesDeleted(cirs))
 	assert.NoError(t, err)
+}
+
+func waitFor(conditionFunc apimachinerywait.ConditionFunc) error {
+	return wait.For(conditionFunc, wait.WithImmediate(), wait.WithInterval(1*time.Second), wait.WithTimeout(30*time.Second))
 }
