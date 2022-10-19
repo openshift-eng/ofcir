@@ -20,6 +20,9 @@ import (
 	apimachinerywait "k8s.io/apimachinery/pkg/util/wait"
 )
 
+// This file contains a number of helper functions capturing the most common actions useful for writing the e2e test
+// Their usage it's recommended also for improving the readability of the e2e tests
+
 func ofcirSetup(testDataFile string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		r := cfg.Client().Resources("ofcir-system")

@@ -17,6 +17,8 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
 
+// OfcirClient is an helper class for interacting with the ofcir api component
+// in the e2e tests
 type OfcirClient struct {
 	t       *testing.T
 	r       *resources.Resources

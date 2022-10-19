@@ -69,13 +69,13 @@ func TestPoolsPriority(t *testing.T) {
 
 			waitForsPoolReady(t, r)
 
-			// cirInfo := c.TryAcquireCIR()
-			// assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
-
-			// cirInfo = c.TryAcquireCIR()
-			// assert.Equal(t, "pool-1", cirInfo.Spec.PoolRef.Name)
-
 			cirInfo := c.TryAcquireCIR()
+			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
+
+			cirInfo = c.TryAcquireCIR()
+			assert.Equal(t, "pool-1", cirInfo.Spec.PoolRef.Name)
+
+			cirInfo = c.TryAcquireCIR()
 			assert.Equal(t, "pool-2", cirInfo.Spec.PoolRef.Name)
 
 			return ctx
