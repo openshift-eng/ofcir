@@ -3,13 +3,14 @@ package providers
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/baremetal/httpbasic"
 	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
 	"github.com/gophercloud/gophercloud/pagination"
 	"go.etcd.io/etcd/pkg/transport"
-	"net/http"
-	"time"
 )
 
 var (
@@ -24,6 +25,7 @@ type ironicProviderConfig struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Image    string `json:"image"`
+	Sshkey   string `json:"sshkey"`
 }
 type ironicProvider struct {
 	config ironicProviderConfig
@@ -159,16 +161,25 @@ func (p *ironicProvider) deployNode(node nodes.Node) error {
 		},
 	})
 
-	// TODO: needs configdrive
 	newstate := nodes.TargetActive
 	if node.ProvisionState == string(nodes.Active) {
 		newstate = "rebuild"
 	} else if node.ProvisionState == string(nodes.DeployFail) {
 		newstate = "rebuild"
 	}
+
+	configDrive := map[string]interface{}{
+		"meta_data": map[string]interface{}{
+			"public_keys": map[string]interface{}{
+				"0": p.config.Sshkey,
+			},
+		},
+	}
+
 	return nodes.ChangeProvisionState(p.client, node.UUID,
 		nodes.ProvisionStateOpts{
-			Target: newstate,
+			Target:      newstate,
+			ConfigDrive: configDrive,
 		},
 	).ExtractErr()
 }
