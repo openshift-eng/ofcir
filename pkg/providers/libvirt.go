@@ -53,7 +53,7 @@ func LibvirtProviderFactory(providerInfo string, secretData map[string][]byte) (
 	}, nil
 }
 
-func (p *libvirtProvider) Acquire(poolSize int, poolName string) (Resource, error) {
+func (p *libvirtProvider) Acquire(poolSize int, poolName string, poolType string) (Resource, error) {
 
 	uniqueId := strings.Replace(uuid.New().String(), "-", "", -1)
 	resourceName := fmt.Sprintf("%s-%s", libvirtDomainPrefix, uniqueId)
