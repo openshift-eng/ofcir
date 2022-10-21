@@ -1,0 +1,12 @@
+apiVersion: ofcir.openshift/v1
+kind: CIPool
+metadata:
+  name: pool-duration
+  namespace: ofcir-system
+spec:
+  provider: fake-provider
+  priority: 0
+  size: 2
+  timeout: '10s'
+  state: available
+  type: host

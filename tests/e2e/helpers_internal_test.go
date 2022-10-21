@@ -148,7 +148,7 @@ func waitNotFor(t *testing.T, conditionFunc apimachinerywait.ConditionFunc, seco
 }
 
 func _waitFor(conditionFunc apimachinerywait.ConditionFunc, seconds ...int) error {
-	timeout := 30 * time.Second
+	timeout := 180 * time.Second
 	if len(seconds) > 0 {
 		timeout = time.Duration(seconds[0]) * time.Second
 	}
