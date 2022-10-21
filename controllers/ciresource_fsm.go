@@ -330,7 +330,7 @@ func (f *CIResourceFSM) Process(cir *ofcirv1.CIResource, cipool *ofcirv1.CIPool,
 
 	state, ok := f.states[context.CIResource.Status.State]
 	if !ok {
-		return false, false, time.Duration(0), fmt.Errorf("state not found: %s", context.CIResource.Spec.State)
+		return false, false, time.Duration(0), fmt.Errorf("state not found: %s", context.CIResource.Status.State)
 	}
 	f.currentState = &state
 	f.currentContext = context
