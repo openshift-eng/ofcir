@@ -41,7 +41,7 @@ func IronicProviderFactory(providerInfo string, secretData map[string][]byte) (P
 
 	if configJSON, ok := secretData["config"]; ok {
 		if err := json.Unmarshal(configJSON, &config); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error in provider config json: %w", err)
 		}
 	}
 
@@ -79,7 +79,7 @@ func (p *ironicProvider) Acquire() (Resource, error) {
 
 	node, err := p.selectNode()
 	if err != nil {
-		return res, err
+		return res, fmt.Errorf("error selecting node: %w", err)
 	}
 
 	res.Id = node.UUID
@@ -94,13 +94,13 @@ func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
 	}
 
 	if err != nil {
-		return false, res, err
+		return false, res, fmt.Errorf("error getting node: %w",err)
 	}
 
 	if node.ProvisionState == string(nodes.DeployFail) {
 		err := p.deployNode(*node)
 		if err != nil {
-			return false, res, err
+			return false, res, fmt.Errorf("error deploying node: %w", err)
 		}
 	}
 
@@ -115,7 +115,7 @@ func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
 func (p *ironicProvider) Clean(id string) error {
 	node, err := nodes.Get(p.client, id).Extract()
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting node: %w",err)
 	}
 	return p.deployNode(*node)
 }
@@ -181,7 +181,7 @@ func (p *ironicProvider) selectNode() (*nodes.Node, error) {
 	err := nodes.List(p.client, nodes.ListOpts{Fields: []string{"uuid,name,provision_state,extra"}}).EachPage(func(page pagination.Page) (bool, error) {
 		thenodes, err := nodes.ExtractNodes(page)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("error extracting nodes: %w", err)
 		}
 
 		for x := 0; x < len(thenodes); x++ {
@@ -198,7 +198,7 @@ func (p *ironicProvider) selectNode() (*nodes.Node, error) {
 
 	// Problem connecting to ironic
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing nodes: %w", err)
 	}
 
 	if selectedNode != nil {
