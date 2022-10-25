@@ -71,9 +71,9 @@ func (f *CIResourceFSM) handleStateNone(context CIResourceFSMContext) (time.Dura
 	// Check if cir contains a finalizer when is not under deletion
 	if context.CIResource.ObjectMeta.DeletionTimestamp.IsZero() {
 		// Add finalizer if not present
-		if !controllerutil.ContainsFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer) {
+		if !controllerutil.ContainsFinalizer(context.CIResource, ofcirv1.OfcirFinalizer) {
 			f.logger.Info("Adding finalizer")
-			controllerutil.AddFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer)
+			controllerutil.AddFinalizer(context.CIResource, ofcirv1.OfcirFinalizer)
 			return f.UpdateResourceOnly()
 		}
 	}
@@ -221,11 +221,11 @@ func (f *CIResourceFSM) handleStateDelete(context CIResourceFSMContext) (time.Du
 
 	f.logger.Info("removing resource", "Id", context.CIResource.Status.ResourceId)
 
-	if controllerutil.ContainsFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer) {
+	if controllerutil.ContainsFinalizer(context.CIResource, ofcirv1.OfcirFinalizer) {
 
 		// don't call the provider if the resource is a fallback dummy
 		if context.CIPool.IsFallbackPool() && context.CIResource.Status.ResourceId == fallbackResourceID {
-			controllerutil.RemoveFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer)
+			controllerutil.RemoveFinalizer(context.CIResource, ofcirv1.OfcirFinalizer)
 			return f.UpdateResourceOnly()
 		}
 
@@ -235,7 +235,7 @@ func (f *CIResourceFSM) handleStateDelete(context CIResourceFSMContext) (time.Du
 			}
 		}
 
-		controllerutil.RemoveFinalizer(context.CIResource, ofcirv1.CIResourceFinalizer)
+		controllerutil.RemoveFinalizer(context.CIResource, ofcirv1.OfcirFinalizer)
 		return f.UpdateResourceOnly()
 	}
 

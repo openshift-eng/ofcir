@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= ofcir:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
 
@@ -67,12 +67,16 @@ docs: ## Generate the doc assests
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/ofcir-operator main.go
-	go build -o bin/ofcir-api cmd/ofcir-api/main.go
+	CGO_ENABLED=1 go build -o bin/ofcir-operator main.go
+	CGO_ENABLED=0 go build -o bin/ofcir-api cmd/ofcir-api/main.go
 
 .PHONY: unit-tests
 unit-tests: fmt vet
-	go test ./...
+	go test ./controllers/... ./pkg/...
+
+.PHONY: e2e-tests
+e2e-tests: 
+	go test ./tests/e2e/...
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -87,6 +91,12 @@ docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
 ##@ Deployment
+
+## Location for storing the manifests to be deployed in the target cluster
+DEPLOY_MANIFESTS_DIR ?= $(shell pwd)/ofcir-manifests
+$(DEPLOY_MANIFESTS_DIR):
+	mkdir -p $(DEPLOY_MANIFESTS_DIR)
+
 
 ifndef ignore-not-found
   ignore-not-found = false
@@ -108,6 +118,17 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: generate-deploy-manifests
+generate-deploy-manifests: $(DEPLOY_MANIFESTS_DIR) manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default > $(DEPLOY_MANIFESTS_DIR)/ofcir-operator.yaml
+
+.PHONY: test-deploy
+test-deploy: generate-deploy-manifests
+	minikube image build -t ofcir.io/ofcir:latest .
+	kubectl delete deployment ofcir-controller-manager || true
+	kubectl apply -f $(DEPLOY_MANIFESTS_DIR)/ofcir-operator.yaml || truessssssssssssssssss
 
 ##@ Build Dependencies
 

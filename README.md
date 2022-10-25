@@ -7,7 +7,7 @@ so that it will be possible to have a more efficient resource management and a m
 
 ## Getting Started
 
-Since we'll need a Kubernetes cluster to run against the ooperator, [Minikube](https://minikube.sigs.k8s.io/) could be used to quickly setup one. The following command could be used to install it
+Since we'll need a Kubernetes cluster to run against the operator, [Minikube](https://minikube.sigs.k8s.io/) could be used to quickly setup one. The following command could be used to install it
 on a Fedora laptop:
 
 ```

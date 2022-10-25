@@ -76,6 +76,7 @@ type CIPoolStatus struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:object:generate=true
 //+kubebuilder:resource:shortName=cip
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Provider",type="string",JSONPath=".spec.provider",description="The provider used by the pool to manage the resources"
@@ -95,6 +96,7 @@ type CIPool struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:object:generate=true
 
 // CIPoolList contains a list of CIPool
 type CIPoolList struct {

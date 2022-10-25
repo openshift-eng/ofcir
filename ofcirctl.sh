@@ -13,12 +13,14 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
+ofcirUrl=$(minikube service ofcir-service --namespace=ofcir-system --url)
+
 case $1 in
     acquire)
         if [ $# -eq 2 ]; then
             type="?type=$2"
         fi
-        res=$(curl -s -X POST http://localhost:8087/v1/ofcir${type})
+        res=$(curl -s -X POST ${ofcirUrl}/v1/ofcir${type})
         echo $res
         ;;
 
@@ -27,7 +29,7 @@ case $1 in
             echo "Command requires <cir-id>"
             exit 1
         fi
-        res=$(curl -s http://localhost:8087/v1/ofcir/$2)
+        res=$(curl -s ${ofcirUrl}/v1/ofcir/$2)
         echo $res
         ;;
 
@@ -36,7 +38,7 @@ case $1 in
             echo "Command requires <cir-id>"
             exit 1
         fi
-        res=$(curl -s -X DELETE http://localhost:8087/v1/ofcir/$2)
+        res=$(curl -s -X DELETE ${ofcirUrl}/v1/ofcir/$2)
         echo $res
         ;;
 

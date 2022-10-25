@@ -70,12 +70,14 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   webhookPort,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "7c25506c.openshift",
+		Scheme:                  scheme,
+		MetricsBindAddress:      metricsAddr,
+		Port:                    webhookPort,
+		HealthProbeBindAddress:  probeAddr,
+		LeaderElection:          enableLeaderElection,
+		LeaderElectionID:        "7c25506c.openshift",
+		LeaderElectionNamespace: "ofcir-system",
+		Namespace:               "ofcir-system",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

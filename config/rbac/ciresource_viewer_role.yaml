@@ -1,8 +1,9 @@
 # permissions for end users to view ciresources.
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: ciresource-viewer-role
+  namespace: system
 rules:
 - apiGroups:
   - ofcir.openshift
