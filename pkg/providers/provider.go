@@ -15,7 +15,7 @@ type Provider interface {
 	// Request a new resource. Resource allocation may take some time,
 	// so it is expected that the provider will reply immediately
 	// with a Resource containing at least the Id
-	Acquire() (Resource, error)
+	Acquire(poolSize int, poolName string) (Resource, error)
 
 	// Check if the acquire operation completed or not. It could be
 	// used to poll a resource for its public address after an Acqure

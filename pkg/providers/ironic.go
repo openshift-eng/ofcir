@@ -74,7 +74,7 @@ func IronicProviderFactory(providerInfo string, secretData map[string][]byte) (P
 	}, nil
 }
 
-func (p *ironicProvider) Acquire() (Resource, error) {
+func (p *ironicProvider) Acquire(poolSize int, poolName string) (Resource, error) {
 	res := Resource{}
 
 	node, err := p.selectNode()

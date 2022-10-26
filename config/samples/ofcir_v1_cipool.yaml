@@ -112,3 +112,33 @@ stringData:
       "endpoint": "https://172.22.0.3:6385",
       "image": "http://172.22.0.1/images/ofcir_image.qcow2"
     }
+---
+
+apiVersion: ofcir.openshift/v1
+kind: CIPool
+metadata:
+  name: cipool-equinix
+spec:
+  provider: equinix
+  priority: 0
+  size: 0
+  timeout: '4h'
+  state: available
+  type: host
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cipool-equinix-secret
+type: Opaque
+stringData:
+  config: |
+    {
+      "projectid": "replace-with-project-id",
+      "token": "secret-token",
+      "facility": ["da11", "dc10", "dc13", "ny5", "sv15"],
+      "plan": "c3.small.x86",
+      "os": "rocky_8"
+    }
