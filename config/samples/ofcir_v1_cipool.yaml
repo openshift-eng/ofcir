@@ -110,7 +110,8 @@ stringData:
       "username": "ironic-user",
       "password": "XXXX",
       "endpoint": "https://172.22.0.3:6385",
-      "image": "http://172.22.0.1/images/ofcir_image.qcow2"
+      "image": "http://172.22.0.1/images/ofcir_image.qcow2",
+      "sshkey": "ssh-rsa ...."
     }
 ---
 
