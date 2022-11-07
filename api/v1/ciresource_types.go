@@ -138,8 +138,8 @@ type CIResource struct {
 	Status CIResourceStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:root=true
+// +kubebuilder:object:generate=true
 // CIResourceList contains a list of CIResource
 type CIResourceList struct {
 	metav1.TypeMeta `json:",inline"`

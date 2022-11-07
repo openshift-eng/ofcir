@@ -45,7 +45,7 @@ type CIResourceReconciler struct {
 //+kubebuilder:rbac:groups=ofcir.openshift,namespace=ofcir-system,resources=ciresources/finalizers,verbs=update
 
 // Reconcile handles changes to the CIResource type
-func (r *CIResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r CIResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithName(req.NamespacedName.Name)
 
 	cir := &ofcirv1.CIResource{}
