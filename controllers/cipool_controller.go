@@ -57,7 +57,7 @@ type CIPoolReconciler struct {
 //+kubebuilder:rbac:groups=ofcir.openshift,namespace=ofcir-system,resources=cipools/finalizers,verbs=update
 
 // Reconcile handles changes to the CIPool type
-func (r *CIPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r CIPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithName(req.NamespacedName.Name)
 	logger.Info("started")
 

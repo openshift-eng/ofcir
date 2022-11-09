@@ -2,248 +2,175 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"testing"
-	"time"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
-	"github.com/openshift/ofcir/pkg/providers"
+	"github.com/openshift/ofcir/pkg/reconcilertest"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func TestCIResourceReconciler_Reconcile(t *testing.T) {
+func TestCIResourceCreationAndAcquisition(t *testing.T) {
 
-	type cirStateEvent func(client client.Client, cir *ofcirv1.CIResource)
-
-	tests := []struct {
-		name   string
-		cipool *cipoolBuilder
-		cir    *cirBuilder
-
-		onStateChange map[ofcirv1.CIResourceState]cirStateEvent
-		waitUntil     func(cir *ofcirv1.CIResource) bool
-
-		expectedStates []ofcirv1.CIResourceState
-		expectedError  error
+	cases := []struct {
+		name     string
+		testCase reconcilertest.Testable
 	}{
 		{
-			name:   "new",
-			cipool: cipool().name("default"),
-			cir:    cir("0").pool("default"),
-
-			waitUntil: func(cir *ofcirv1.CIResource) bool {
-				return cir.Status.State == ofcirv1.StateAvailable
-			},
-			expectedStates: []ofcirv1.CIResourceState{
-				ofcirv1.StateNone, ofcirv1.StateProvisioning, ofcirv1.StateProvisioningWait, ofcirv1.StateAvailable,
-			},
+			name: "finalizer is immediately added for a new resource",
+			testCase: newCIResourceScenario().
+				Setup(scenarioPoolWithSingleCir).
+				ReconcileUntil(func(client client.Client, cir *ofcirv1.CIResource) bool {
+					return cir.Status.State == ofcirv1.StateNone && controllerutil.ContainsFinalizer(cir, ofcirv1.OfcirFinalizer)
+				}),
 		},
 		{
-			name:   "fallback-resource-skips-provisiongwait",
-			cipool: cipool().name("fallback").priority(-1),
-			cir:    cir("0").pool("fallback"),
-
-			waitUntil: func(cir *ofcirv1.CIResource) bool {
-				return cir.Status.State == ofcirv1.StateAvailable
-			},
-			expectedStates: []ofcirv1.CIResourceState{
-				ofcirv1.StateNone, ofcirv1.StateProvisioning, ofcirv1.StateAvailable,
-			},
+			name: "new resource gets provisioned and becomes available with a valid id and address",
+			testCase: newCIResourceScenario().
+				Setup(scenarioPoolWithSingleCir).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateProvisioning
+				}).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateProvisioningWait
+				}).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateAvailable
+				}).
+				Then(func(t *testing.T, client client.Client, obj *ofcirv1.CIResource) {
+					assert.NotEmpty(t, obj.Status.ResourceId)
+					assert.NotEmpty(t, obj.Status.Address)
+				}),
 		},
 		{
-			name:   "fallback-resource-deletion",
-			cipool: cipool().name("fallback").priority(-1),
-			cir:    cir("0").pool("fallback"),
-
-			onStateChange: map[ofcirv1.CIResourceState]cirStateEvent{
-				ofcirv1.StateAvailable: func(client client.Client, cir *ofcirv1.CIResource) {
-					client.Delete(context.TODO(), cir)
-				},
-			},
-
-			waitUntil: func(cir *ofcirv1.CIResource) bool {
-				return cir == nil
-			},
+			name: "available resource can be moved under maintenance",
+			testCase: newCIResourceScenario().
+				Setup(scenarioPoolWithSingleCir).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateAvailable
+				}).
+				Then(func(t *testing.T, client client.Client, obj *ofcirv1.CIResource) {
+					obj.Spec.State = ofcirv1.StateMaintenance
+					client.Update(context.Background(), obj)
+				}).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateMaintenance
+				}),
+		},
+		{
+			name: "acquire and release an available resource",
+			testCase: newCIResourceScenario().
+				Setup(scenarioPoolWithSingleCir).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateAvailable
+				}).
+				Then(func(t *testing.T, client client.Client, obj *ofcirv1.CIResource) {
+					obj.Spec.State = ofcirv1.StateInUse
+					client.Update(context.Background(), obj)
+				}, "acquire the available resource").
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateInUse
+				}).
+				Then(func(t *testing.T, client client.Client, obj *ofcirv1.CIResource) {
+					obj.Spec.State = ofcirv1.StateAvailable
+					client.Update(context.Background(), obj)
+				}, "release the resource").
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateAvailable
+				}),
+		},
+		{
+			name: "released resource gets cleaned and becomes available",
+			testCase: newCIResourceScenario().
+				Setup(scenarioPoolWithSingleCir).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateAvailable
+				}).
+				Then(func(t *testing.T, client client.Client, obj *ofcirv1.CIResource) {
+					obj.Spec.State = ofcirv1.StateInUse
+					client.Update(context.Background(), obj)
+				}, "acquire the available resource").
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateInUse
+				}).
+				Then(func(t *testing.T, client client.Client, obj *ofcirv1.CIResource) {
+					obj.Spec.State = ofcirv1.StateAvailable
+					client.Update(context.Background(), obj)
+				}, "release the acquired resource").
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateCleaning
+				}).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateCleaningWait
+				}).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateAvailable
+				}),
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.name, tc.testCase.Test)
+	}
+}
 
-			s := runtime.NewScheme()
-			_ = ofcirv1.AddToScheme(s)
-			_ = corev1.AddToScheme(s)
+func TestCIResourceReconcilerFallbacks(t *testing.T) {
 
-			cipool := tt.cipool.build()
-			cir := tt.cir.build()
+	cases := []struct {
+		name     string
+		testCase reconcilertest.Testable
+	}{
+		{
+			name: "delete available fallback resource",
+			testCase: newCIResourceScenario().
+				Setup(func() []runtime.Object {
+					cip, secret := cipoolWithSecret()
+					cip.priority(-1)
+					cir := cir("cir-0").pool(cip.Name)
 
-			cipoolSecret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("%s-secret", cipool.Name),
-					Namespace: cipool.Namespace,
-				},
-			}
-
-			fakeClient := fake.NewClientBuilder().
-				WithScheme(s).
-				WithRuntimeObjects(cipool, cipoolSecret, cir).Build()
-
-			r := &CIResourceReconciler{
-				Client: fakeClient,
-			}
-
-			cirKey := types.NamespacedName{
-				Name:      cir.Name,
-				Namespace: cir.Namespace,
-			}
-
-			var stateTransitions []ofcirv1.CIResourceState
-			var latestErr error
-
-			maxReconciles := 20
-			counter := 0
-
-			for counter = 0; counter < maxReconciles; counter++ {
-				_, latestErr = r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: cirKey})
-
-				var latestCir ofcirv1.CIResource
-				err := fakeClient.Get(context.TODO(), cirKey, &latestCir)
-				if err == nil {
-					if len(stateTransitions) == 0 {
-						stateTransitions = append(stateTransitions, latestCir.Status.State)
-					} else if stateTransitions[len(stateTransitions)-1] != latestCir.Status.State {
-						stateTransitions = append(stateTransitions, latestCir.Status.State)
-
-						if action, found := tt.onStateChange[latestCir.Status.State]; found {
-							action(fakeClient, &latestCir)
-						}
+					return []runtime.Object{
+						cir.build(), cip.build(), secret,
 					}
-				}
-
-				cir := &latestCir
-				if errors.IsNotFound(err) {
-					cir = nil
-				}
-
-				if tt.waitUntil(cir) {
-					break
-				}
-			}
-			assert.Less(t, counter, maxReconciles, "Too many reconcile loops")
-
-			if tt.expectedError != nil {
-				assert.Equal(t, tt.expectedError, latestErr)
-			} else {
-				assert.NoError(t, latestErr)
-
-				latestCir := ofcirv1.CIResource{}
-				fakeClient.Get(context.TODO(), cirKey, &latestCir)
-
-				if len(tt.expectedStates) > 0 {
-					assert.Equal(t, tt.expectedStates, stateTransitions)
-				}
-			}
-		})
-	}
-}
-
-// cipoolBuilder allows to build a CIPool instance using a fluent interface
-type cipoolBuilder struct {
-	ofcirv1.CIPool
-}
-
-// cipool creates a new instance with useful default values
-func cipool() *cipoolBuilder {
-	return &cipoolBuilder{
-		CIPool: ofcirv1.CIPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cipool-test",
-				Namespace: defaultTestNs,
-			},
-			Spec: ofcirv1.CIPoolSpec{
-				Provider: string(providers.ProviderDummy),
-				Size:     10,
-				Timeout: metav1.Duration{
-					Duration: time.Hour * 4,
-				},
-				Priority: 0,
-				State:    ofcirv1.StatePoolAvailable,
-			},
+				}).
+				ReconcileUntil(func(client client.Client, cir *ofcirv1.CIResource) bool {
+					return cir.Status.State == ofcirv1.StateAvailable
+				}, "wait for cir to become available").
+				Then(func(t *testing.T, client client.Client, cir *ofcirv1.CIResource) {
+					client.Delete(context.TODO(), cir)
+				}, "delete cir").
+				ReconcileUntil(func(client client.Client, cir *ofcirv1.CIResource) bool {
+					return cir == nil
+				}, "wait for cir to be removed").Case(),
 		},
 	}
-}
-
-const (
-	defaultTestNs string = "test-ns"
-)
-
-func (cp *cipoolBuilder) build() *ofcirv1.CIPool {
-	return &cp.CIPool
-}
-
-func (cp *cipoolBuilder) name(value string) *cipoolBuilder {
-	cp.Name = value
-	return cp
-}
-
-func (cp *cipoolBuilder) size(s int) *cipoolBuilder {
-	cp.Spec.Size = s
-	return cp
-}
-
-func (cp *cipoolBuilder) priority(value int) *cipoolBuilder {
-	cp.Spec.Priority = value
-	return cp
-}
-
-// cirBuilder allows to build a CIResource instance using a fluent interface
-type cirBuilder struct {
-	ofcirv1.CIResource
-}
-
-func cir(name string) *cirBuilder {
-	return &cirBuilder{
-		CIResource: ofcirv1.CIResource{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: defaultTestNs,
-			},
-			Spec: ofcirv1.CIResourceSpec{
-				State: ofcirv1.StateNone,
-				Type:  ofcirv1.TypeCIHost,
-				PoolRef: corev1.LocalObjectReference{
-					Name: "",
-				},
-			},
-			Status: ofcirv1.CIResourceStatus{
-				State: ofcirv1.StateNone,
-			},
-		},
+	for _, tc := range cases {
+		t.Run(tc.name, tc.testCase.Test)
 	}
 }
 
-func (cb *cirBuilder) build() *ofcirv1.CIResource {
-	return &cb.CIResource
+func newCIResourceScenario() reconcilertest.Scenario[CIResourceReconciler, ofcirv1.CIResource, *ofcirv1.CIResource] {
+	return reconcilertest.New[CIResourceReconciler, ofcirv1.CIResource]().
+		WithSchemes(ofcirv1.AddToScheme, corev1.AddToScheme)
 }
 
-func (cb *cirBuilder) pool(p string) *cirBuilder {
-	cb.Spec.PoolRef.Name = p
-	return cb
+func scenarioPoolWithSingleCir() []runtime.Object {
+	cip, secret := cipoolWithSecret()
+	cir := cir("cir-0").pool(cip.Name)
+
+	return []runtime.Object{
+		cir.build(), cip.build(), secret,
+	}
 }
 
-func (cb *cirBuilder) currentState(s ofcirv1.CIResourceState) *cirBuilder {
-	cb.Status.State = s
-	return cb
-}
+func scenarioWithEmptyPool() []runtime.Object {
 
-func (cb *cirBuilder) requiredState(s ofcirv1.CIResourceState) *cirBuilder {
-	cb.Spec.State = s
-	return cb
+	cip, secret := cipoolWithSecret()
+	cip.size(0)
+
+	return []runtime.Object{
+		cip.build(), secret,
+	}
+
 }
