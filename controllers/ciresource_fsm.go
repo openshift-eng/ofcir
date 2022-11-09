@@ -319,7 +319,7 @@ func (f *CIResourceFSM) Process(cir *ofcirv1.CIResource, cipool *ofcirv1.CIPool,
 
 	provider, err := providers.NewProvider(cipool, cipoolSecret)
 	if err != nil {
-		return false, false, time.Duration(0), err
+		return false, false, time.Duration(0), fmt.Errorf("error in provider factory: %w", err)
 	}
 
 	context := CIResourceFSMContext{
@@ -339,7 +339,7 @@ func (f *CIResourceFSM) Process(cir *ofcirv1.CIResource, cipool *ofcirv1.CIPool,
 	if f.beforeAnyState != nil {
 		retryAfter, err := f.beforeAnyState(context)
 		if retryAfter != 0 || err != nil {
-			return f.resourceDirty, f.statusDirty, retryAfter, err
+			return f.resourceDirty, f.statusDirty, retryAfter, fmt.Errorf("error in main handler: %w", err)
 		}
 	}
 

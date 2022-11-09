@@ -44,7 +44,7 @@ func LibvirtProviderFactory(providerInfo string, secretData map[string][]byte) (
 	if configJSON, ok := secretData["config"]; ok {
 
 		if err := json.Unmarshal(configJSON, &config); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error in provider config json: %w", err)
 		}
 	}
 
@@ -63,7 +63,7 @@ func (p *libvirtProvider) Acquire(poolSize int, poolName string) (Resource, erro
 	}
 
 	if err := p.createVM(res.Id, ""); err != nil {
-		return res, err
+		return res, fmt.Errorf("error creating VM: %w", err)
 	}
 
 	return res, nil
@@ -78,19 +78,19 @@ func (p *libvirtProvider) AcquireCompleted(id string) (bool, Resource, error) {
 
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return false, res, err
+		return false, res, fmt.Errorf("error connecting to qemu: %w", err)
 	}
 	defer conn.Close()
 
 	domain, err := conn.LookupDomainByName(id)
 	if err != nil {
-		return false, res, err
+		return false, res, fmt.Errorf("error in domain lookup: %w", err)
 	}
 
 	// Check if domain is active
 	isActive, err := domain.IsActive()
 	if err != nil {
-		return false, res, err
+		return false, res, fmt.Errorf("error checking domain is active: %w", err)
 	}
 	if !isActive {
 		return false, res, nil
@@ -99,25 +99,25 @@ func (p *libvirtProvider) AcquireCompleted(id string) (bool, Resource, error) {
 	// Look for IP Address
 	network, err := conn.LookupNetworkByName(p.config.Pool)
 	if err != nil {
-		return false, res, err
+		return false, res, fmt.Errorf("error in network lookup: %w", err)
 	}
 
 	xmldoc, err := domain.GetXMLDesc(0)
 	if err != nil {
-		return false, res, err
+		return false, res, fmt.Errorf("error getting the domain XML: %w", err)
 	}
 
 	domcfg := &libvirtxml.Domain{}
 	err = domcfg.Unmarshal(xmldoc)
 	if err != nil {
-		return false, res, err
+		return false, res, fmt.Errorf("error in domain XML: %w", err)
 	}
 
 	macAddress := domcfg.Devices.Interfaces[0].MAC.Address
 
 	leases, err := network.GetDHCPLeases()
 	if err != nil {
-		return false, res, err
+		return false, res, fmt.Errorf("error getting DHCP leases: %w", err)
 	}
 
 	for _, l := range leases {
@@ -134,25 +134,25 @@ func (p *libvirtProvider) Clean(id string) error {
 
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return err
+		return fmt.Errorf("error connecting to qemu: %w", err)
 	}
 	defer conn.Close()
 
 	// Get current domain MAC
 	domain, err := conn.LookupDomainByName(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("error in domain lookup: %w", err)
 	}
 
 	xmldoc, err := domain.GetXMLDesc(0)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting the domain XML: %w", err)
 	}
 
 	domcfg := &libvirtxml.Domain{}
 	err = domcfg.Unmarshal(xmldoc)
 	if err != nil {
-		return err
+		return fmt.Errorf("error in domain XML: %w", err)
 	}
 
 	macAddress := domcfg.Devices.Interfaces[0].MAC.Address
@@ -160,13 +160,13 @@ func (p *libvirtProvider) Clean(id string) error {
 	// Destroy the vm
 	err = p.destroyVM(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("error destroying the VM: %w", err)
 	}
 
 	// Recreate the vm with the same name and mac
 	err = p.createVM(id, macAddress)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating VM: %w", err)
 	}
 
 	return nil
@@ -177,14 +177,18 @@ func (p *libvirtProvider) CleanCompleted(id string) (bool, error) {
 }
 
 func (p *libvirtProvider) Release(id string) error {
-	return p.destroyVM(id)
+	err := p.destroyVM(id)
+	if err != nil {
+		return fmt.Errorf("error destroying the VM: %w", err)
+	}
+	return nil
 }
 
 func (p *libvirtProvider) createVM(name string, macAddress string) error {
 
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return err
+		return fmt.Errorf("error connecting to qemu: %w", err)
 	}
 	defer conn.Close()
 
@@ -202,7 +206,7 @@ func (p *libvirtProvider) createVM(name string, macAddress string) error {
 	// Create volume
 	pool, err := conn.LookupStoragePoolByName(p.config.Pool)
 	if err != nil {
-		return err
+		return fmt.Errorf("error in storage pool lookup: %w", err)
 	}
 
 	volCfg := &libvirtxml.StorageVolume{
@@ -238,12 +242,12 @@ func (p *libvirtProvider) createVM(name string, macAddress string) error {
 
 	volDoc, err := volCfg.Marshal()
 	if err != nil {
-		return err
+		return fmt.Errorf("error configuring volume: %w", err)
 	}
 
 	_, err = pool.StorageVolCreateXML(volDoc, 0)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating volume XML: %w", err)
 	}
 
 	// Create virtual machine
@@ -367,17 +371,17 @@ func (p *libvirtProvider) createVM(name string, macAddress string) error {
 
 	xmlDoc, err := domCfg.Marshal()
 	if err != nil {
-		return err
+		return fmt.Errorf("error configuring domain: %w", err)
 	}
 
 	domain, err := conn.DomainDefineXML(xmlDoc)
 	if err != nil {
-		return err
+		return fmt.Errorf("error in defining domain: %w", err)
 	}
 
 	err = domain.Create()
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating domain: %w", err)
 	}
 
 	return nil
@@ -387,7 +391,7 @@ func (p *libvirtProvider) destroyVM(id string) error {
 
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
-		return err
+		return fmt.Errorf("error connecting to qemu: %w", err)
 	}
 	defer conn.Close()
 
@@ -399,24 +403,24 @@ func (p *libvirtProvider) destroyVM(id string) error {
 			return NewResourceNotFoundError(id)
 		}
 
-		return err
+		return fmt.Errorf("error in domain lookup: %w", err)
 	}
 
 	running, err := domain.IsActive()
 	if err != nil {
-		return err
+		return fmt.Errorf("error verifying domain is active: %w", err)
 	}
 
 	if running {
 		err = domain.Destroy()
 		if err != nil {
-			return err
+			return fmt.Errorf("error destroying domain: %w", err)
 		}
 	}
 
 	err = domain.Undefine()
 	if err != nil {
-		return err
+		return fmt.Errorf("error undefining domain: %w", err)
 	}
 
 	// Delete domain volume
@@ -425,7 +429,7 @@ func (p *libvirtProvider) destroyVM(id string) error {
 	if err == nil {
 		err = vol.Delete(libvirt.STORAGE_VOL_DELETE_NORMAL)
 		if err != nil {
-			return err
+			return fmt.Errorf("error deleting volume: %w", err)
 		}
 	}
 
