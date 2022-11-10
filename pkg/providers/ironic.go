@@ -96,7 +96,7 @@ func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
 	}
 
 	if err != nil {
-		return false, res, fmt.Errorf("error getting node: %w",err)
+		return false, res, fmt.Errorf("error getting node: %w", err)
 	}
 
 	if node.ProvisionState == string(nodes.DeployFail) {
@@ -117,7 +117,7 @@ func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
 func (p *ironicProvider) Clean(id string) error {
 	node, err := nodes.Get(p.client, id).Extract()
 	if err != nil {
-		return fmt.Errorf("error getting node: %w",err)
+		return fmt.Errorf("error getting node: %w", err)
 	}
 	return p.deployNode(*node)
 }
