@@ -172,6 +172,12 @@ func (f *CIResourceFSM) handleStateInUse(context CIResourceFSMContext) (time.Dur
 		if context.CIPool.IsFallbackPool() && context.CIResource.Status.Address == "" && context.CIResource.Status.ResourceId == fallbackResourceID {
 			return f.TriggerEvent("fallback-provisioning")
 		}
+		// CIR's can only be held "inuse" for a limited amount of time
+		if time.Now().Sub(context.CIResource.Status.LastUpdated.Time) > context.CIPool.Spec.Timeout.Duration {
+			f.logger.Info("releasing resource, max duration hit", "Id", context.CIResource.Status.ResourceId)
+			context.CIResource.Spec.State = ofcirv1.StateAvailable
+			return f.UpdateResourceOnly()
+		}
 	}
 
 	return defaultCirRetryDelay, nil

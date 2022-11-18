@@ -35,7 +35,7 @@ func TestAcquireAllResources(t *testing.T) {
 
 	testenv.Test(t, features.New("resource acquisition").
 		Setup(ofcirSetup("pool-with-2-cirs")).
-		Assess("acquire one resource", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		Assess("acquire all resources", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources("ofcir-system")
 			c := NewOfcirClient(t, cfg)
@@ -77,6 +77,28 @@ func TestPoolsPriority(t *testing.T) {
 
 			cirInfo = c.TryAcquireCIR()
 			assert.Equal(t, "pool-2", cirInfo.Spec.PoolRef.Name)
+
+			return ctx
+		}).
+		Teardown(ofcirTeardown()).
+		Feature(),
+	)
+}
+
+func TestAcquireDurationResources(t *testing.T) {
+	testenv.Test(t, features.New("resource acquisition").
+		Setup(ofcirSetup("pool-duration")).
+		Assess("acquire a resources with short duration", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			r := cfg.Client().Resources("ofcir-system")
+			c := NewOfcirClient(t, cfg)
+
+			waitForPoolReady(t, r, "pool-duration")
+
+			cir := c.TryAcquireCIR()
+
+			waitForCIRState(t, r, cir, ofcirv1.StateInUse)
+			// CIR should be released after 10 seconds (actually a minute due to reconcile loop timing)
+			waitForCIRState(t, r, cir, ofcirv1.StateAvailable)
 
 			return ctx
 		}).
