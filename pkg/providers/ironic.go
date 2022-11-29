@@ -76,10 +76,10 @@ func IronicProviderFactory(providerInfo string, secretData map[string][]byte) (P
 	}, nil
 }
 
-func (p *ironicProvider) Acquire(poolSize int, poolName string) (Resource, error) {
+func (p *ironicProvider) Acquire(poolSize int, poolName string, poolType string) (Resource, error) {
 	res := Resource{}
 
-	node, err := p.selectNode()
+	node, err := p.selectNode(poolType)
 	if err != nil {
 		return res, fmt.Errorf("error selecting node: %w", err)
 	}
@@ -186,7 +186,7 @@ func (p *ironicProvider) deployNode(node nodes.Node) error {
 
 // Note: If we ever increase the reconsole loop to run concurrent
 // threads, some locking will be needed here
-func (p *ironicProvider) selectNode() (*nodes.Node, error) {
+func (p *ironicProvider) selectNode(poolType string) (*nodes.Node, error) {
 	var selectedNode *nodes.Node
 
 	err := nodes.List(p.client, nodes.ListOpts{Fields: []string{"uuid,name,provision_state,extra"}}).EachPage(func(page pagination.Page) (bool, error) {
@@ -197,8 +197,7 @@ func (p *ironicProvider) selectNode() (*nodes.Node, error) {
 
 		for x := 0; x < len(thenodes); x++ {
 			node := thenodes[x]
-			// Todo: type should be part of the CIR
-			if node.Extra[typeName] == "host" && (node.Extra[cirName] == nil || node.Extra[cirName] == "") {
+			if node.Extra[typeName] == poolType && (node.Extra[cirName] == nil || node.Extra[cirName] == "") {
 				selectedNode = &node
 				p.deployNode(node)
 				return false, nil

@@ -27,7 +27,7 @@ func TestAcquire(t *testing.T) {
 
 	p, err := LibvirtProviderFactory("", secretData)
 	assert.NoError(t, err)
-	res, err := p.Acquire(1, "test")
+	res, err := p.Acquire(1, "test", "host")
 	assert.NoError(t, err)
 
 	var isReady bool
@@ -81,7 +81,7 @@ func TestClean(t *testing.T) {
 	conn, _ := libvirt.NewConnect("qemu:///system")
 	defer conn.Close()
 
-	res, err := p.Acquire(1, "test")
+	res, err := p.Acquire(1, "test", "host")
 	assert.NoError(t, err)
 
 	time.Sleep(1 * time.Minute)

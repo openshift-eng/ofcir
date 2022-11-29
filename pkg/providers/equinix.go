@@ -55,7 +55,7 @@ func EquinixProviderFactory(providerInfo string, secretData map[string][]byte) (
 	}, nil
 }
 
-func (p *equinixProvider) Acquire(poolSize int, poolName string) (Resource, error) {
+func (p *equinixProvider) Acquire(poolSize int, poolName string, poolType string) (Resource, error) {
 	resource := Resource{}
 
 	//check how many resources exist and compare to pool size spec

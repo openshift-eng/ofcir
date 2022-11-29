@@ -42,7 +42,7 @@ func DummyProviderFactory(providerInfo string, secretData map[string][]byte) Pro
 	return dummy
 }
 
-func (p *dummyProvider) Acquire(poolSize int, poolName string) (Resource, error) {
+func (p *dummyProvider) Acquire(poolSize int, poolName string, poolType string) (Resource, error) {
 
 	for _, i := range p.instances {
 		if i.available {
