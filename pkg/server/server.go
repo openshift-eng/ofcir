@@ -1,13 +1,18 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/openshift/ofcir/pkg/server/commands"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -19,6 +24,7 @@ type OfcirAPI struct {
 	sync.Mutex
 	config    *rest.Config
 	clientset *ofcirclientv1.OfcirV1Client
+	corev1    corev1.CoreV1Interface
 	router    *gin.Engine
 
 	port      string
@@ -57,15 +63,38 @@ func (o *OfcirAPI) Init(kubeconfig string) error {
 	}
 	o.clientset = clientset
 
+	kubeclient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	o.corev1 = kubeclient.CoreV1()
+
 	// Setup the server
 	r := gin.Default()
-	r.Group("/v1").
+	r.Group("/v1").Use(o.AuthRequired()).
 		GET("/ofcir/:cirName", o.handleGetCirStatus).
 		POST("/ofcir", o.handleAcquireCir).
 		DELETE("/ofcir/:cirName", o.handleReleaseCir)
 
 	o.router = r
 	return nil
+}
+
+func (o *OfcirAPI) AuthRequired() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		tokens, err := o.corev1.Secrets("ofcir-system").Get(context.Background(), "ofcir-tokens", metav1.GetOptions{})
+		tokenheader := ctx.Request.Header["X-Ofcirtoken"]
+		if (err != nil) || (len(tokenheader) == 0) {
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		if string(tokens.Data[tokenheader[0]]) == "" {
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		ctx.Set("validpools", strings.TrimSpace(string(tokens.Data[tokenheader[0]])))
+	}
 }
 
 func (o *OfcirAPI) Run() {

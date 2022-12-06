@@ -9,7 +9,11 @@ import (
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/stretchr/testify/assert"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -23,11 +27,27 @@ import (
 // This file contains a number of helper functions capturing the most common actions useful for writing the e2e test
 // Their usage it's recommended also for improving the readability of the e2e tests
 
-func ofcirSetup(testDataFile string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+func ofcirSetup(testDataFile string, pools string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		r := cfg.Client().Resources("ofcir-system")
 
 		err := decoder.DecodeEachFile(ctx, os.DirFS("testdata"), fmt.Sprintf("%s.yaml", testDataFile), decoder.CreateHandler(r))
+		assert.NoError(t, err)
+
+		// create a token for the created pools
+		token := envconf.RandomName("e2e", 10)
+		ctx = context.WithValue(ctx, "token", token)
+		cs, _ := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+		secretclient := cs.CoreV1().Secrets("ofcir-system")
+
+		secret, err := secretclient.Get(context.Background(), "ofcir-tokens", v1.GetOptions{})
+		assert.NoError(t, err)
+
+		secret.Data = map[string][]byte{
+			token: []byte(pools),
+		}
+
+		_, err = secretclient.Update(context.Background(), secret, v1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		return ctx
@@ -38,12 +58,13 @@ func ofcirSetup(testDataFile string) func(ctx context.Context, t *testing.T, cfg
 func ofcirTeardown() func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		r := cfg.Client().Resources("ofcir-system")
-		c := NewOfcirClient(t, cfg)
+		c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 		// Release any cir still in use
 		var cirs ofcirv1.CIResourceList
 		err := r.List(ctx, &cirs)
 		assert.NoError(t, err)
+
 		for _, cir := range cirs.Items {
 			if cir.Status.State == ofcirv1.StateInUse {
 				c.TryReleaseCIR(&cir)
@@ -64,6 +85,14 @@ func ofcirTeardown() func(ctx context.Context, t *testing.T, cfg *envconf.Config
 		err = r.List(ctx, &cirs)
 		assert.NoError(t, err)
 		assert.Len(t, cirs.Items, 0, "Found some dangling CIResources in the ofcir-system namespace")
+
+		// Remove token
+		cs, _ := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+		secretclient := cs.CoreV1().Secrets("ofcir-system")
+		op := "[{\"op\": \"remove\", \"path\": \"/data/" + ctx.Value("token").(string) + "\"}]"
+		_, e := secretclient.Patch(context.Background(), "ofcir-tokens", types.JSONPatchType, []byte(op), metav1.PatchOptions{})
+
+		assert.NoError(t, e)
 
 		return ctx
 	}

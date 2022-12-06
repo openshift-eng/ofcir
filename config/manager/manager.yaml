@@ -21,6 +21,14 @@ spec:
     control-plane: controller-manager
   type: NodePort
 ---
+apiVersion: v1
+kind: Secret
+stringData: {}
+metadata:
+  name: tokens
+  namespace: ofcir-system
+type: Opaque
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

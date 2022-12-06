@@ -143,3 +143,14 @@ stringData:
       "plan": "c3.small.x86",
       "os": "rocky_8"
     }
+
+---
+
+apiVersion: v1
+kind: Secret
+stringData:
+  testtoken: "cipool-fallback,cipool-fake,cipool-libvirt,cipool-ironic,cipool-equinix"
+metadata:
+  name: ofcir-tokens
+  namespace: default
+type: Opaque

@@ -23,9 +23,10 @@ type OfcirClient struct {
 	t       *testing.T
 	r       *resources.Resources
 	baseUrl string
+	token   string
 }
 
-func NewOfcirClient(t *testing.T, cfg *envconf.Config) *OfcirClient {
+func NewOfcirClient(t *testing.T, cfg *envconf.Config, token string) *OfcirClient {
 
 	rawUrl := cfg.Client().RESTConfig().Host
 	u, err := url.Parse(rawUrl)
@@ -47,6 +48,7 @@ func NewOfcirClient(t *testing.T, cfg *envconf.Config) *OfcirClient {
 		t:       t,
 		r:       cfg.Client().Resources("ofcir-system"),
 		baseUrl: fmt.Sprintf("http://%s:%d", host, port),
+		token:   token,
 	}
 }
 
@@ -60,10 +62,17 @@ type OfcirAcquire struct {
 
 func (c *OfcirClient) Acquire() (*OfcirAcquire, error) {
 	destUrl := fmt.Sprintf("%s/v1/ofcir?type=host", c.baseUrl)
-	r, err := http.Post(destUrl, "", nil)
+
+	req, err := http.NewRequest("POST", destUrl, nil)
+	req.Header.Add("X-Ofcirtoken", c.token)
+	r, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
+	if r.Status == "401 Unauthorized" {
+		return nil, fmt.Errorf("%q", "401 Unauthorized")
+	}
+
 	defer r.Body.Close()
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -114,7 +123,11 @@ type OfcirStatus struct {
 
 func (c *OfcirClient) Status(id string) (*OfcirStatus, error) {
 	destUrl := fmt.Sprintf("%s/v1/ofcir/%s", c.baseUrl, id)
-	r, err := http.Get(destUrl)
+
+	req, err := http.NewRequest("GET", destUrl, nil)
+	req.Header.Add("X-Ofcirtoken", c.token)
+
+	r, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -142,10 +155,10 @@ func (c *OfcirClient) TryStatus(id string) *OfcirStatus {
 
 func (c *OfcirClient) Release(id string) (string, error) {
 	destUrl := fmt.Sprintf("%s/v1/ofcir/%s", c.baseUrl, id)
+
 	req, err := http.NewRequest("DELETE", destUrl, nil)
-	if err != nil {
-		return "", err
-	}
+	req.Header.Add("X-Ofcirtoken", c.token)
+
 	r, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
