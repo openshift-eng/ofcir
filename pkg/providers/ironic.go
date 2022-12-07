@@ -111,6 +111,7 @@ func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
 	}
 
 	res.Address, _ = node.Extra["ip"].(string)
+	res.Metadata, _ = node.Extra["data"].(string)
 	return true, res, nil
 }
 
