@@ -1,45 +1,56 @@
 package providers
 
 import (
+	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/baremetal/httpbasic"
 	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
+	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/openshift/ofcir/pkg/utils"
 	"go.etcd.io/etcd/pkg/transport"
 )
 
 var (
-	clients  map[string]*gophercloud.ServiceClient = make(map[string]*gophercloud.ServiceClient)
-	typeName string                                = "type"
-	cirName  string                                = "cir"
-	cirTaken string                                = "taken"
+	clients        map[string]*gophercloud.ServiceClient = make(map[string]*gophercloud.ServiceClient)
+	instance_infos map[string]map[string]string          = make(map[string]map[string]string)
+	typeName       string                                = "ofcir_type"
+	cirName        string                                = "ofcir_cir"
+	cirTaken       string                                = "taken"
 )
 
 type ironicProviderConfig struct {
-	Endpoint string `json:"endpoint"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Image    string `json:"image"`
-	Sshkey   string `json:"sshkey"`
+	Endpoint  string `json:"endpoint"`
+	OSCloud   string `json:"oscloud"`
+	CloudYAML string `json:"cloudyaml"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Image     string `json:"image"`
+	Sshkey    string `json:"sshkey"`
 }
 type ironicProvider struct {
-	config ironicProviderConfig
-	client *gophercloud.ServiceClient
+	config        ironicProviderConfig
+	client        *gophercloud.ServiceClient
+	instance_info map[string]string
 }
 
 func IronicProviderFactory(providerInfo string, secretData map[string][]byte) (Provider, error) {
-
 	config := ironicProviderConfig{
-		Username: "",
-		Password: "",
-		Endpoint: "https://172.22.0.3:6385",
-		Image:    "http://172.22.0.1/images/ofcir_image.qcow2",
+		Username:  "",
+		Password:  "",
+		OSCloud:   "openstack",
+		CloudYAML: "",
+		Endpoint:  "https://172.22.0.3:6385",
+		Image:     "http://172.22.0.1/images/ofcir_image.qcow2",
 	}
 
 	if configJSON, ok := secretData["config"]; ok {
@@ -48,17 +59,52 @@ func IronicProviderFactory(providerInfo string, secretData map[string][]byte) (P
 		}
 	}
 
-	key := config.Endpoint + config.Username
+	var client *gophercloud.ServiceClient
+
+	key := config.Endpoint + config.Username + config.OSCloud
 	// Assuming here that there is only a single reconcile loop,
 	if _, ok := clients[key]; !ok {
-		client, _ := httpbasic.NewBareMetalHTTPBasic(httpbasic.EndpointOpts{
-			IronicEndpoint:     config.Endpoint,
-			IronicUser:         config.Username,
-			IronicUserPassword: config.Password,
-		})
+		instance_info := make(map[string]string)
+		if config.CloudYAML != "" {
+			clouds_yaml_file := fmt.Sprintf("/tmp/%x.yaml", md5.Sum([]byte(key)))
+			file, _ := os.Create(clouds_yaml_file)
+			defer file.Close()
+			decoded, _ := base64.StdEncoding.DecodeString(config.CloudYAML)
+			file.Write(decoded)
+
+			os.Setenv("OS_CLIENT_CONFIG_FILE", clouds_yaml_file)
+
+			opts := new(clientconfig.ClientOpts)
+			opts.Cloud = config.OSCloud
+			client, _ = clientconfig.NewServiceClient("baremetal", opts)
+
+			if !strings.Contains(config.Image, "://") {
+				image_client, err := clientconfig.NewServiceClient("image", opts)
+				image, err := images.Get(image_client, config.Image).Extract()
+				if err != nil {
+					return nil, fmt.Errorf("Error getting image info: %w", err)
+				}
+				instance_info["image_source"] = image.ID
+				instance_info["kernel"] = image.Properties["kernel_id"].(string)
+				instance_info["ramdisk"] = image.Properties["ramdisk_id"].(string)
+			} else {
+				instance_info["image_source"] = config.Image
+				instance_info["image_checksum"] = config.Image + ".checksum"
+			}
+
+		} else {
+			client, _ = httpbasic.NewBareMetalHTTPBasic(httpbasic.EndpointOpts{
+				IronicEndpoint:     config.Endpoint,
+				IronicUser:         config.Username,
+				IronicUserPassword: config.Password,
+			})
+			instance_info["image_source"] = config.Image
+			instance_info["image_checksum"] = config.Image + ".checksum"
+		}
 		clients[key] = client
+		instance_infos[key] = instance_info
 	}
-	client := clients[key]
+	client = clients[key]
 
 	tlsInfo := transport.TLSInfo{
 		InsecureSkipVerify: true,
@@ -69,11 +115,12 @@ func IronicProviderFactory(providerInfo string, secretData map[string][]byte) (P
 	}
 
 	client.HTTPClient = c
-	client.Microversion = "1.74"
+	client.Microversion = "1.72"
 
 	return &ironicProvider{
-		config: config,
-		client: client,
+		config:        config,
+		client:        client,
+		instance_info: instance_infos[key],
 	}, nil
 }
 
@@ -111,8 +158,15 @@ func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
 		return false, res, nil
 	}
 
-	res.Address, _ = node.Extra["ip"].(string)
-	res.Metadata, _ = node.Extra["data"].(string)
+	res.Address, _ = node.Extra["ofcir_ip"].(string)
+
+	// Ironic can return this as a string or JSON
+	if val, ok := node.Extra["ofcir_data"].(string); ok {
+		res.Metadata = val
+	} else {
+		ofcir_data, _ := json.Marshal(node.Extra["ofcir_data"])
+		res.Metadata = fmt.Sprintf("%s", ofcir_data)
+	}
 
 	// Hold back on setting nodes to Available until ssh is available
 	if !utils.IsPortOpen(res.Address, "22") {
@@ -152,9 +206,12 @@ func (p *ironicProvider) Release(id string) error {
 
 func (p *ironicProvider) deployNode(node nodes.Node) error {
 	node.Extra[cirName] = cirTaken
-	instance_info := make(map[string]string)
-	instance_info["image_source"] = p.config.Image
-	instance_info["image_checksum"] = p.config.Image + ".checksum"
+
+	// Note: should be based on node.Properties["local_gb"]
+	// but node.Properties appears to be empty
+	// FS normally grows on first boot
+	p.instance_info["root_gb"] = "64"
+
 	nodes.Update(p.client, node.UUID, nodes.UpdateOpts{
 		nodes.UpdateOperation{
 			Op:    nodes.ReplaceOp,
@@ -164,7 +221,7 @@ func (p *ironicProvider) deployNode(node nodes.Node) error {
 		nodes.UpdateOperation{
 			Op:    nodes.ReplaceOp,
 			Path:  "/instance_info",
-			Value: instance_info,
+			Value: p.instance_info,
 		},
 	})
 
@@ -206,7 +263,10 @@ func (p *ironicProvider) selectNode(poolType string) (*nodes.Node, error) {
 			node := thenodes[x]
 			if node.Extra[typeName] == poolType && (node.Extra[cirName] == nil || node.Extra[cirName] == "") {
 				selectedNode = &node
-				p.deployNode(node)
+				err = p.deployNode(node)
+				if err != nil {
+					return false, fmt.Errorf("error deploying node: %w", err)
+				}
 				return false, nil
 			}
 		}
