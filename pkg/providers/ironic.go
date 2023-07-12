@@ -59,69 +59,113 @@ func IronicProviderFactory(providerInfo string, secretData map[string][]byte) (P
 		}
 	}
 
+	provider := &ironicProvider{
+		config: config,
+	}
+
+	err := provider.UpdateClient(false)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
+/* Create a new openstack baremetal client */
+func (p *ironicProvider) UpdateClient(clearcache bool) error {
 	var client *gophercloud.ServiceClient
 
-	key := config.Endpoint + config.Username + config.OSCloud
+	key := p.config.Endpoint + p.config.Username + p.config.OSCloud
+	if clearcache {
+		delete(clients, key)
+	}
+
 	// Assuming here that there is only a single reconcile loop,
 	if _, ok := clients[key]; !ok {
 		instance_info := make(map[string]string)
-		if config.CloudYAML != "" {
+		if p.config.CloudYAML != "" {
 			clouds_yaml_file := fmt.Sprintf("/tmp/%x.yaml", md5.Sum([]byte(key)))
 			file, _ := os.Create(clouds_yaml_file)
 			defer file.Close()
-			decoded, _ := base64.StdEncoding.DecodeString(config.CloudYAML)
+			decoded, _ := base64.StdEncoding.DecodeString(p.config.CloudYAML)
 			file.Write(decoded)
 
 			os.Setenv("OS_CLIENT_CONFIG_FILE", clouds_yaml_file)
 
 			opts := new(clientconfig.ClientOpts)
-			opts.Cloud = config.OSCloud
+			opts.Cloud = p.config.OSCloud
 			client, _ = clientconfig.NewServiceClient("baremetal", opts)
 
-			if !strings.Contains(config.Image, "://") {
+			if !strings.Contains(p.config.Image, "://") {
 				image_client, err := clientconfig.NewServiceClient("image", opts)
-				image, err := images.Get(image_client, config.Image).Extract()
+				image, err := images.Get(image_client, p.config.Image).Extract()
 				if err != nil {
-					return nil, fmt.Errorf("Error getting image info: %w", err)
+					return fmt.Errorf("Error getting image info: %w", err)
 				}
 				instance_info["image_source"] = image.ID
 				instance_info["kernel"] = image.Properties["kernel_id"].(string)
 				instance_info["ramdisk"] = image.Properties["ramdisk_id"].(string)
 			} else {
-				instance_info["image_source"] = config.Image
-				instance_info["image_checksum"] = config.Image + ".checksum"
+				instance_info["image_source"] = p.config.Image
+				instance_info["image_checksum"] = p.config.Image + ".checksum"
 			}
 
 		} else {
 			client, _ = httpbasic.NewBareMetalHTTPBasic(httpbasic.EndpointOpts{
-				IronicEndpoint:     config.Endpoint,
-				IronicUser:         config.Username,
-				IronicUserPassword: config.Password,
+				IronicEndpoint:     p.config.Endpoint,
+				IronicUser:         p.config.Username,
+				IronicUserPassword: p.config.Password,
 			})
-			instance_info["image_source"] = config.Image
-			instance_info["image_checksum"] = config.Image + ".checksum"
+			instance_info["image_source"] = p.config.Image
+			instance_info["image_checksum"] = p.config.Image + ".checksum"
+
+			tlsInfo := transport.TLSInfo{
+				InsecureSkipVerify: true,
+			}
+			tlsTransport, _ := transport.NewTransport(tlsInfo, time.Second*30)
+			c := http.Client{
+				Transport: tlsTransport,
+			}
+			client.HTTPClient = c
 		}
+		client.Microversion = "1.72"
+
 		clients[key] = client
 		instance_infos[key] = instance_info
 	}
-	client = clients[key]
+	p.client = clients[key]
+	p.instance_info = instance_infos[key]
+	return nil
+}
 
-	tlsInfo := transport.TLSInfo{
-		InsecureSkipVerify: true,
+func (p *ironicProvider) GetNode(id string) (*nodes.Node, error) {
+	node, err := nodes.Get(p.client, id).Extract()
+	// If the Auth token expired, log in and try again
+	if err != nil && strings.Contains(err.Error(), "Authentication failed") {
+		p.UpdateClient(true)
+		node, err = nodes.Get(p.client, id).Extract()
 	}
-	tlsTransport, _ := transport.NewTransport(tlsInfo, time.Second*30)
-	c := http.Client{
-		Transport: tlsTransport,
+	return node, err
+}
+
+func (p *ironicProvider) UpdateNode(id string, opts nodes.UpdateOpts) (*nodes.Node, error) {
+	node, err := nodes.Update(p.client, id, opts).Extract()
+	// If the Auth token expired, log in and try again
+	if err != nil && strings.Contains(err.Error(), "Authentication failed") {
+		p.UpdateClient(true)
+		node, err = nodes.Update(p.client, id, opts).Extract()
 	}
+	return node, err
+}
 
-	client.HTTPClient = c
-	client.Microversion = "1.72"
-
-	return &ironicProvider{
-		config:        config,
-		client:        client,
-		instance_info: instance_infos[key],
-	}, nil
+func (p *ironicProvider) ChangeProvisionStateNode(id string, opts nodes.ProvisionStateOpts) error {
+	err := nodes.ChangeProvisionState(p.client, id, opts).ExtractErr()
+	// If the Auth token expired, log in and try again
+	if err != nil && strings.Contains(err.Error(), "Authentication failed") {
+		p.UpdateClient(true)
+		err = nodes.ChangeProvisionState(p.client, id, opts).ExtractErr()
+	}
+	return err
 }
 
 func (p *ironicProvider) Acquire(poolSize int, poolName string, poolType string) (Resource, error) {
@@ -137,7 +181,7 @@ func (p *ironicProvider) Acquire(poolSize int, poolName string, poolType string)
 }
 
 func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
-	node, err := nodes.Get(p.client, id).Extract()
+	node, err := p.GetNode(id)
 
 	res := Resource{
 		Id: id,
@@ -176,7 +220,7 @@ func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
 }
 
 func (p *ironicProvider) Clean(id string) error {
-	node, err := nodes.Get(p.client, id).Extract()
+	node, err := p.GetNode(id)
 	if err != nil {
 		return fmt.Errorf("error getting node: %w", err)
 	}
@@ -189,12 +233,12 @@ func (p *ironicProvider) CleanCompleted(id string) (bool, error) {
 }
 
 func (p *ironicProvider) Release(id string) error {
-	node, _ := nodes.Get(p.client, id).Extract()
+	node, _ := p.GetNode(id)
 	node.Extra[cirName] = ""
 
 	// We're clearing the cir metadata but not cleaning, in favour
 	// of cleaning when the node is acquired
-	nodes.Update(p.client, id, nodes.UpdateOpts{
+	p.UpdateNode(id, nodes.UpdateOpts{
 		nodes.UpdateOperation{
 			Op:    nodes.ReplaceOp,
 			Path:  "/extra",
@@ -212,7 +256,7 @@ func (p *ironicProvider) deployNode(node nodes.Node) error {
 	// FS normally grows on first boot
 	p.instance_info["root_gb"] = "64"
 
-	nodes.Update(p.client, node.UUID, nodes.UpdateOpts{
+	p.UpdateNode(node.UUID, nodes.UpdateOpts{
 		nodes.UpdateOperation{
 			Op:    nodes.ReplaceOp,
 			Path:  "/extra",
@@ -240,12 +284,12 @@ func (p *ironicProvider) deployNode(node nodes.Node) error {
 		},
 	}
 
-	return nodes.ChangeProvisionState(p.client, node.UUID,
+	return p.ChangeProvisionStateNode(node.UUID,
 		nodes.ProvisionStateOpts{
 			Target:      newstate,
 			ConfigDrive: configDrive,
 		},
-	).ExtractErr()
+	)
 }
 
 // Note: If we ever increase the reconsole loop to run concurrent
