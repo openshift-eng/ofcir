@@ -319,6 +319,11 @@ func (p *ironicProvider) selectNode(poolType string) (*nodes.Node, error) {
 
 	// Problem connecting to ironic
 	if err != nil {
+		// Auth problems are expect each time the auth token times out (if using keystone)
+		// re-auth and all should be ok the next time the reconcole loop runs
+		if strings.Contains(err.Error(), "Authentication failed") {
+			p.UpdateClient(true)
+		}
 		return nil, fmt.Errorf("error listing nodes: %w", err)
 	}
 
