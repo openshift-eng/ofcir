@@ -63,6 +63,7 @@ func main() {
 		"Webhook Server port (set to 0 to disable)")
 	opts := zap.Options{
 		Development: true,
+		Level:       zapcore.InfoLevel,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()

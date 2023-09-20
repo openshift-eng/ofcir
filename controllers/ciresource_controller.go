@@ -79,7 +79,10 @@ func (r CIResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	logger.Info("done", "State", cir.Status.State)
+	if isDirty || isStatusDirty {
+		logger.Info("changed", "State", cir.Status.State)
+	}
+
 	return ctrl.Result{RequeueAfter: retryAfter}, nil
 }
 
