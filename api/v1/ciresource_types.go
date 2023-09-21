@@ -128,6 +128,7 @@ type CIResourceStatus struct {
 //+kubebuilder:printcolumn:name="Req State",type="string",JSONPath=".spec.state",description="Requested state"
 //+kubebuilder:printcolumn:name="Pool",type="string",JSONPath=".spec.poolRef.name",description="Pool owning the current resource"
 //+kubebuilder:printcolumn:name="Res Id",type="string",JSONPath=".status.resourceId",description="Resource Id"
+//+kubebuilder:printcolumn:name="Last Updated",type="date",JSONPath=".status.lastUpdated",description="Last Updated"
 
 // CIResource represents a physical allocated instance (or set of instances) from a specific pool
 type CIResource struct {
