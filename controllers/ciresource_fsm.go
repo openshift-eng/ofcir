@@ -20,8 +20,9 @@ const (
 
 func NewCIResourceFSM(logger logr.Logger) *CIResourceFSM {
 	fsm := &CIResourceFSM{
-		states: make(map[ofcirv1.CIResourceState]fsmState),
-		logger: logger,
+		states:      make(map[ofcirv1.CIResourceState]fsmState),
+		logger:      logger,
+		debuglogger: logger.V(1),
 	}
 
 	fsm.State(ofcirv1.StateNone,
@@ -291,7 +292,8 @@ type CIResourceFSMContext struct {
 }
 
 type CIResourceFSM struct {
-	logger logr.Logger
+	logger      logr.Logger
+	debuglogger logr.Logger
 
 	currentState   *fsmState
 	currentContext CIResourceFSMContext
@@ -349,13 +351,13 @@ func (f *CIResourceFSM) Process(cir *ofcirv1.CIResource, cipool *ofcirv1.CIPool,
 		}
 	}
 
-	f.logger.Info("state -->", "state", state.id)
+	f.debuglogger.Info("state -->", "state", state.id)
 	retryAfter, err := state.onEntry(context)
 
 	if err != nil {
 		f.logger.Error(err, "error caught while processing state", "state", state.id)
 	}
-	f.logger.Info("state <--", "state", state.id)
+	f.debuglogger.Info("state <--", "state", state.id)
 
 	return f.resourceDirty, f.statusDirty, retryAfter, err
 }
