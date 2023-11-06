@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"os"
 
@@ -31,6 +32,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/openshift/ofcir/controllers"
@@ -72,15 +75,27 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	metricsOptions := metricsserver.Options{
+		BindAddress: metricsAddr,
+	}
+	// CVE-2023-44487 - disable HTTP2
+	disableHTTP2 := func(c *tls.Config) {
+		c.NextProtos = []string{"http/1.1"}
+	}
+	webhookServerOptions := webhook.Options{
+		Port:    webhookPort,
+		TLSOpts: []func(config *tls.Config){disableHTTP2},
+	}
+	webhookServer := webhook.NewServer(webhookServerOptions)
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  scheme,
-		MetricsBindAddress:      metricsAddr,
-		Port:                    webhookPort,
+		Metrics:                 metricsOptions,
+		WebhookServer:           webhookServer,
 		HealthProbeBindAddress:  probeAddr,
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "7c25506c.openshift",
 		LeaderElectionNamespace: "ofcir-system",
-		Namespace:               "ofcir-system",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
