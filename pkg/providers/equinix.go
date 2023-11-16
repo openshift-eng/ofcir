@@ -18,11 +18,11 @@ var client *packngo.Client
 var eqOnce sync.Once
 
 type equinixProviderConfig struct {
-	ProjectID string   `json:"projectid"` //project id in equinix
-	Token     string   `json:"token"`     //token for authentication
-	Facility  []string `json:"facility"`  //datacenters to use
-	Plan      string   `json:"plan"`      //server size
-	OS        string   `json:"os"`        //OS to install
+	ProjectID string `json:"projectid"` //project id in equinix
+	Token     string `json:"token"`     //token for authentication
+	Metro     string `json:"metro"`     //server location
+	Plan      string `json:"plan"`      //server size
+	OS        string `json:"os"`        //OS to install
 }
 
 type equinixProvider struct {
@@ -34,7 +34,7 @@ func EquinixProviderFactory(providerInfo string, secretData map[string][]byte) (
 	config := equinixProviderConfig{
 		ProjectID: "",
 		Token:     "",
-		Facility:  []string{"da11", "dc10", "dc13", "ny5", "sv15"},
+		Metro:     "da",
 		Plan:      "c3.small.x86",
 		OS:        "rocky_8",
 	}
@@ -81,7 +81,7 @@ func (p *equinixProvider) Acquire(poolSize int, poolName string, poolType string
 
 	cr := packngo.DeviceCreateRequest{
 		Hostname:  resourceName,
-		Facility:  p.config.Facility,
+		Metro:     p.config.Metro,
 		Plan:      p.config.Plan,
 		OS:        p.config.OS,
 		ProjectID: p.config.ProjectID,

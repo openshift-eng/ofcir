@@ -139,7 +139,7 @@ stringData:
     {
       "projectid": "replace-with-project-id",
       "token": "secret-token",
-      "facility": ["da11", "dc10", "dc13", "ny5", "sv15"],
+      "metro": "da",
       "plan": "c3.small.x86",
       "os": "rocky_8"
     }
