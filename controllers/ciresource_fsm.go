@@ -188,8 +188,11 @@ func (f *CIResourceFSM) handleStateCleaning(context CIResourceFSMContext) (time.
 
 	// If it's a fallback resource, let's clean and release it immediately
 	if context.CIPool.IsFallbackPool() {
-		if err := context.Provider.Release(context.CIResource.Status.ResourceId); err != nil {
-			if !errors.As(err, &providers.ResourceNotFoundError{}) {
+
+		// Do not delete a fallback resource that was not yet created
+		if context.CIResource.Status.ResourceId != fallbackResourceID {
+			err := context.Provider.Release(context.CIResource.Status.ResourceId)
+			if err != nil && !errors.As(err, &providers.ResourceNotFoundError{}) {
 				return defaultCIPoolRetryDelay, err
 			}
 		}

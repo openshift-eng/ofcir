@@ -144,6 +144,39 @@ func TestCIResourceReconcilerFallbacks(t *testing.T) {
 					return cir == nil
 				}, "wait for cir to be removed").Case(),
 		},
+		{
+			name: "do not release fallback dummy resources (just cleanup)",
+			testCase: newCIResourceScenario().
+				Setup(func() []runtime.Object {
+					cip, secret := cipoolWithSecret()
+					cip.priority(-1)
+					cir := cir("cir-0").pool(cip.Name)
+
+					return []runtime.Object{
+						cir.build(), cip.build(), secret,
+					}
+				}).
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateAvailable
+				}).
+				Then(func(t *testing.T, client client.Client, obj *ofcirv1.CIResource) {
+					obj.Spec.State = ofcirv1.StateInUse
+					client.Update(context.Background(), obj)
+				}, "acquire the fallback resource").
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateInUse
+				}).
+				Then(func(t *testing.T, client client.Client, obj *ofcirv1.CIResource) {
+					// A premature release can happen if the provider didn't provisioned yet the instance,
+					// thus the CIR resource is still marked with the dummy fallback id
+					assert.Equal(t, fallbackResourceID, obj.Status.ResourceId)
+					obj.Spec.State = ofcirv1.StateAvailable
+					client.Update(context.Background(), obj)
+				}, "release the resource before getting provisioned by the provider").
+				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
+					return obj.Status.State == ofcirv1.StateAvailable
+				}).Case(),
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, tc.testCase.Test)
