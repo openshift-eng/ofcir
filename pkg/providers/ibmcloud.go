@@ -19,6 +19,10 @@ import (
 // Package 200 are the fast provisioning servers (40-60min provsion)
 const IbmCloudFastProvisioningServer = 200
 
+// Tags used to mark manual hosts
+const manualTag = "ofcir-manual"
+const takenTag = "ofcir-taken"
+
 // TODO: Would love to find a way to list locations where the package is available but
 // I can't for the life of me figure it out, need to revisit
 // I've removed some of the more expensive locations from the list below
@@ -181,6 +185,25 @@ func (p *ibmcloudProvider) serverCreate(pool, presetname string) (string, error)
 func (p *ibmcloudProvider) Acquire(poolSize int, poolName string, poolType string) (Resource, error) {
 
 	res := Resource{}
+
+	// The ibmprovider can either pick up a existing baremetal node or create a new(hourly) one
+	// If a node exists with the tag "ofcir-manual" and without the tag "ofcir-taken" we assume
+	// it if available to be used, if not we create a new hourly server
+	node, err := p.getAvailableHost()
+
+	if err != nil {
+		return res, err
+	}
+
+	if node != nil {
+		res.Id = *node.Hostname
+		return res, nil
+	}
+
+	if p.config.Preset == "" {
+		return res, errors.New("No suitable hosts found and Preset not set to create Hosts")
+	}
+
 	id, err := p.serverCreate(poolName, p.config.Preset)
 	if err != nil {
 		return res, err
@@ -192,7 +215,7 @@ func (p *ibmcloudProvider) Acquire(poolSize int, poolName string, poolType strin
 
 func (p *ibmcloudProvider) getNodeByName(name string) (*datatypes.Hardware, error) {
 	service := services.GetAccountService(p.client)
-	nodes, err := service.Mask("id;hostname;primaryIpAddress;hardwareStatus;billingItem;hourlyBillingFlag;lastTransaction").GetHardware()
+	nodes, err := service.Mask("id;hostname;primaryIpAddress;hardwareStatus;billingItem;hourlyBillingFlag;lastTransaction,tagReferences").GetHardware()
 	if err != nil {
 		return nil, err
 	}
@@ -226,6 +249,45 @@ func (p *ibmcloudProvider) ensureSSHKey(newkey string) (*int, error) {
 		return nil, err
 	}
 	return newKey.Id, nil
+}
+
+func (p *ibmcloudProvider) getAvailableHost() (*datatypes.Hardware, error) {
+	service := services.GetAccountService(p.client)
+	// Only return Hardware with one of the manual or take tags
+	nodeFilter := fmt.Sprintf("{\"hardware\":{\"tagReferences\":{\"tag\": {\"name\":{\"operation\": \"in\", "+
+		"\"options\": [{\"name\": \"data\", \"value\": [\"%s\", \"%s\"]}]}}}}}", manualTag, takenTag)
+	nodes, err := service.Mask("id;hostname;hardwareStatus;tagReferences").Filter(nodeFilter).GetHardware()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, node := range nodes {
+		taken := false
+		manual := false
+		for _, tag := range node.TagReferences {
+			if *tag.Tag.Name == takenTag {
+				taken = true
+			}
+			if *tag.Tag.Name == manualTag {
+				manual = true
+			}
+
+		}
+
+		if manual == true && taken == false && *node.HardwareStatus.Status == "ACTIVE" {
+			service := services.GetHardwareServerService(p.client)
+			service.Id(*node.Id).SetTags(sl.String(manualTag + "," + takenTag))
+			p.Clean(*node.Hostname)
+			return &node, nil
+		}
+	}
+	return nil, nil
+}
+
+func (p *ibmcloudProvider) releaseManualHost(node *datatypes.Hardware) error {
+	service := services.GetHardwareServerService(p.client)
+	_, err := service.Id(*node.Id).SetTags(sl.String(manualTag))
+	return err
 }
 
 func (p *ibmcloudProvider) AcquireCompleted(id string) (bool, Resource, error) {
@@ -306,6 +368,13 @@ func (p *ibmcloudProvider) Release(id string) error {
 			return err
 		}
 		return errors.New("Error getting node")
+	}
+
+	// If this was a manual host, we don't cancel it we just unmark it as taken
+	for _, tag := range node.TagReferences {
+		if *tag.Tag.Name == manualTag {
+			return p.releaseManualHost(node)
+		}
 	}
 
 	service := services.GetBillingItemService(p.client)
