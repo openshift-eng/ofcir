@@ -310,6 +310,11 @@ func (p *ironicProvider) selectNode(poolType string) (*nodes.Node, error) {
 
 		for x := 0; x < len(thenodes); x++ {
 			node := thenodes[x]
+
+			if node.ProvisionState != string(nodes.Active) && node.ProvisionState != string(nodes.Available) {
+				continue
+			}
+
 			if node.Extra[typeName] == poolType && (node.Extra[cirName] == nil || node.Extra[cirName] == "") {
 				selectedNode = &node
 				err = p.deployNode(node)
