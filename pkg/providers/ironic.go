@@ -75,7 +75,7 @@ func IronicProviderFactory(providerInfo string, secretData map[string][]byte) (P
 func (p *ironicProvider) UpdateClient(clearcache bool) error {
 	var client *gophercloud.ServiceClient
 
-	key := p.config.Endpoint + p.config.Username + p.config.OSCloud
+	key := p.config.Endpoint + p.config.Username + p.config.OSCloud + p.config.CloudYAML
 	if clearcache {
 		delete(clients, key)
 	}
