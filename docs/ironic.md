@@ -18,6 +18,7 @@ If using ironic with keystone auth and glance images the provider secret should 
 When the ironic provider needs to acquire a node, it looks at the nodes "extra" data in order to find a suitable node. The relevant fields in the "extra" data are
 **ofcir_type**: this is set to match the "type" of the cipool, e.g. CIR's of type "large" with only be associated with ironic nodes of type "large"
 **ofcir_ip**: This should be pre-populated to the IP address associated with this node, the assumption is the dhcp has been configured to allocate each node with a specific address
+**ofcir_port_ssh**: This should be pre-populated to the ssh port number associated with this node, if not present port 22 can be assumed. This can be used when multiple nodes use a common Floating IP
 **ofcir_cir**: This is set by the ironic provider to mark a node as already in use
 **ofcir_data**: Added to the cir assosiated with this node to provised arbitary data about the node in question
 

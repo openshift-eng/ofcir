@@ -212,8 +212,13 @@ func (p *ironicProvider) AcquireCompleted(id string) (bool, Resource, error) {
 		res.Metadata = fmt.Sprintf("%s", ofcir_data)
 	}
 
+	sshport := "22"
+	if v, found := node.Extra["ofcir_port_ssh"]; found {
+		sshport = v.(string)
+	}
+
 	// Hold back on setting nodes to Available until ssh is available
-	if !utils.IsPortOpen(res.Address, "22") {
+	if !utils.IsPortOpen(res.Address, sshport) {
 		return false, res, nil
 	}
 	return true, res, nil
