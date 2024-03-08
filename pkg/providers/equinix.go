@@ -104,6 +104,11 @@ func (p *equinixProvider) AcquireCompleted(id string) (bool, Resource, error) {
 
 	device, _, err := p.client.Devices.Get(id, nil)
 	if err != nil {
+		// "404 Not found" happens when Equinix deletes a failed device
+		// the error is permanent
+		if strings.Contains(err.Error(), "404 Not found") {
+			return false, resource, NewAcquisitionError(id, err)
+		}
 		return false, resource, fmt.Errorf("error getting device: %w", err)
 	}
 
