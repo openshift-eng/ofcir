@@ -36,6 +36,7 @@ func NewCIResourceFSM(logger logr.Logger) *CIResourceFSM {
 
 	fsm.State(ofcirv1.StateProvisioningWait,
 		fsm.handleStateProvisioningWait,
+		Transition("on-provisioning-failure", ofcirv1.StateProvisioning),
 		Transition("on-provisioning-complete", ofcirv1.StateAvailable))
 
 	fsm.State(ofcirv1.StateAvailable,
@@ -107,6 +108,12 @@ func (f *CIResourceFSM) handleStateProvisioningWait(context CIResourceFSMContext
 
 	isReady, resource, err := context.Provider.AcquireCompleted(context.CIResource.Status.ResourceId)
 	if err != nil {
+		// if provisioning error is permanent stop trying
+		// go back and provision another resource
+		if errors.As(err, &providers.AcquisitionError{}) {
+			f.logger.Info("acquistion error, re-acquiring", "Id", context.CIResource.Status.ResourceId, "Error", err.Error())
+			return f.TriggerEvent("on-provisioning-failure")
+		}
 		return 0, err
 	}
 
