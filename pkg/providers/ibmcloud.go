@@ -34,6 +34,7 @@ type ibmcloudProviderConfig struct {
 	APIKey string `json:"apikey"`
 	Sshkey string `json:"sshkey"`
 	Preset string `json:"preset"`
+	OS     string `json:"os"`
 }
 
 type ibmcloudProvider struct {
@@ -42,7 +43,9 @@ type ibmcloudProvider struct {
 }
 
 func IbmcloudProviderFactory(providerInfo string, secretData map[string][]byte) (Provider, error) {
-	config := ibmcloudProviderConfig{}
+	config := ibmcloudProviderConfig{
+		OS: "OS_CENTOS_STREAM_8_X_64_BIT",
+	}
 
 	if configJSON, ok := secretData["config"]; ok {
 		if err := json.Unmarshal(configJSON, &config); err != nil {
@@ -123,7 +126,7 @@ func (p *ibmcloudProvider) serverCreate(pool, presetname string) (string, error)
 	required_items := []string{
 		"REBOOT_KVM_OVER_IP",
 		"UNLIMITED_SSL_VPN_USERS_1_PPTP_VPN_USER_PER_ACCOUNT",
-		"OS_CENTOS_STREAM_8_X_64_BIT",
+		p.config.OS,
 		"BANDWIDTH_0_GB_2",
 		"1_GBPS_PUBLIC_PRIVATE_NETWORK_UPLINKS",
 		"1_IP_ADDRESS",
@@ -215,7 +218,7 @@ func (p *ibmcloudProvider) Acquire(poolSize int, poolName string, poolType strin
 
 func (p *ibmcloudProvider) getNodeByName(name string) (*datatypes.Hardware, error) {
 	service := services.GetAccountService(p.client)
-	nodes, err := service.Mask("id;hostname;primaryIpAddress;hardwareStatus;billingItem;hourlyBillingFlag;lastTransaction,tagReferences").GetHardware()
+	nodes, err := service.Mask("id;hostname;primaryIpAddress;hardwareStatus;billingItem;hourlyBillingFlag;lastTransaction;tagReferences;billingItem[categoryCode,package[name,id]]").GetHardware()
 	if err != nil {
 		return nil, err
 	}
@@ -343,11 +346,17 @@ func (p *ibmcloudProvider) Clean(id string) error {
 		return err
 	}
 
+	required_items := []string{
+		p.config.OS,
+	}
+	prices := p.getItemPriceList(*node.BillingItem.Package.Id, required_items)
+
 	service := services.GetHardwareServerService(p.client)
 	config := datatypes.Container_Hardware_Server_Configuration{}
 	config.SshKeyIds = []int{*key}
-	_, err = service.Id(*node.Id).ReloadOperatingSystem(sl.String("FORCE"), &config)
+	config.ItemPrices = prices
 
+	_, err = service.Id(*node.Id).ReloadOperatingSystem(sl.String("FORCE"), &config)
 	if err != nil {
 		return err
 	}

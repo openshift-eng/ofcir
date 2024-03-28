@@ -6,6 +6,7 @@ For ibmcloud the provider secret should be configured with the following values
 **apikey**: The API key to be used to authenticate with the ibmcloud API
 **preset**: The preset package name to use when creating Hourly nodes for CIR's, if not set then the provider will only be capable of using manualy precreated Hardware
 **sshkey**: A public ssh key to be provisioned on the server
+**os**:     The os to installed on the nodes in this pool, defaults to "OS_CENTOS_STREAM_8_X_64_BIT"
 
 ## Ibmcloud nodes
 When the ibmcloud provider needs to acquire a node, it looks at the nodes "tags" in order to find a suitable node. The relevant tags are
