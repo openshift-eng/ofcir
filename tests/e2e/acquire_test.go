@@ -23,7 +23,7 @@ func TestAcquire(t *testing.T) {
 
 			waitForPoolReady(t, r, "pool-with-2-cirs")
 
-			cir := c.TryAcquireCIR()
+			cir := c.TryAcquireCIR("host")
 			waitForCIRState(t, r, cir, ofcirv1.StateInUse)
 
 			return ctx
@@ -46,11 +46,11 @@ func TestAcquireAllResources(t *testing.T) {
 
 			// Try to acquire all the resources offered by the pool
 			for range cirs.Items {
-				c.TryAcquireCIR()
+				c.TryAcquireCIR("host")
 			}
 
 			// Next acquire must fail
-			_, err := c.Acquire()
+			_, err := c.Acquire("host")
 			assert.ErrorContains(t, err, "No available resource found")
 
 			return ctx
@@ -71,13 +71,13 @@ func TestPoolsPriority(t *testing.T) {
 
 			waitForsPoolReady(t, r)
 
-			cirInfo := c.TryAcquireCIR()
+			cirInfo := c.TryAcquireCIR("host")
 			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
 
-			cirInfo = c.TryAcquireCIR()
+			cirInfo = c.TryAcquireCIR("host")
 			assert.Equal(t, "pool-1", cirInfo.Spec.PoolRef.Name)
 
-			cirInfo = c.TryAcquireCIR()
+			cirInfo = c.TryAcquireCIR("host")
 			assert.Equal(t, "pool-2", cirInfo.Spec.PoolRef.Name)
 
 			// Fallback resources quickly go through several stages before settling down on "in use"
@@ -100,7 +100,7 @@ func TestPoolsToken(t *testing.T) {
 		Setup(ofcirSetup("three-pools", "pool-0")).
 		Assess("blocks when empty token", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			c := NewOfcirClient(t, cfg, "")
-			_, e := c.Acquire()
+			_, e := c.Acquire("host")
 			if assert.Error(t, e) {
 				assert.Equal(t, fmt.Errorf("%q", "401 Unauthorized"), e)
 			}
@@ -113,13 +113,41 @@ func TestPoolsToken(t *testing.T) {
 
 			waitForsPoolReady(t, r)
 
-			cirInfo := c.TryAcquireCIR()
+			cirInfo := c.TryAcquireCIR("host")
 			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
 
-			_, e := c.Acquire()
+			_, e := c.Acquire("host")
 			if assert.Error(t, e) {
 				assert.Equal(t, fmt.Errorf("%q", "No available resource found"), e)
 			}
+			return ctx
+		}).
+		Teardown(ofcirTeardown()).
+		Feature(),
+	)
+}
+
+func TestPoolsTypes(t *testing.T) {
+	testenv.Test(t, features.New("resource acquisition by type list").
+		Setup(ofcirSetup("pools-different-types", "pool-0,pool-1")).
+		Assess("allows when \"host\" available", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
+			cirInfo := c.TryAcquireCIR("host")
+			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
+			return ctx
+		}).
+		Assess("blocks when \"host2\" not specified and \"host\" not available", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
+			_, e := c.Acquire("host")
+			if assert.Error(t, e) {
+				assert.Equal(t, fmt.Errorf("%q", "No available resource found"), e)
+			}
+			return ctx
+		}).
+		Assess("allows when \"host2\" specified and available", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
+			cirInfo := c.TryAcquireCIR("host,host2")
+			assert.Equal(t, "pool-1", cirInfo.Spec.PoolRef.Name)
 			return ctx
 		}).
 		Teardown(ofcirTeardown()).
@@ -136,7 +164,7 @@ func TestAcquireDurationResources(t *testing.T) {
 
 			waitForPoolReady(t, r, "pool-duration")
 
-			cir := c.TryAcquireCIR()
+			cir := c.TryAcquireCIR("host")
 
 			waitForCIRState(t, r, cir, ofcirv1.StateInUse)
 			// CIR should be released after 10 seconds (actually a minute due to reconcile loop timing)
