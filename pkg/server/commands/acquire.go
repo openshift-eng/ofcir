@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
@@ -15,19 +16,35 @@ import (
 )
 
 type acquireCmd struct {
-	context      *gin.Context
-	clientset    *ofcirclientv1.OfcirV1Client
-	namespace    string
-	resourceType ofcirv1.CIResourceType
+	context       *gin.Context
+	clientset     *ofcirclientv1.OfcirV1Client
+	namespace     string
+	resourceTypes []ofcirv1.CIResourceType
 }
 
-func NewAcquireCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns string, resourceType string) command {
-	return &acquireCmd{
-		context:      c,
-		clientset:    clientset,
-		namespace:    ns,
-		resourceType: ofcirv1.CIResourceType(resourceType),
+func NewAcquireCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns string, resourceType_str string) command {
+	// type can be a comma seperated list
+	resourceTypes_split := strings.Split(resourceType_str, ",")
+	resourceTypes := make([]ofcirv1.CIResourceType, len(resourceTypes_split))
+	for i, v := range resourceTypes_split {
+		resourceTypes[i] = ofcirv1.CIResourceType(v)
 	}
+
+	return &acquireCmd{
+		context:       c,
+		clientset:     clientset,
+		namespace:     ns,
+		resourceTypes: resourceTypes,
+	}
+}
+
+func contains(rtypes []ofcirv1.CIResourceType, rtype ofcirv1.CIResourceType) bool {
+	for _, t := range rtypes {
+		if t == rtype {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *acquireCmd) Run() error {
@@ -38,14 +55,15 @@ func (c *acquireCmd) Run() error {
 	}
 
 	poolsByName := make(map[string]ofcirv1.CIPool)
+	// c.resourceTypes is a list of cir types, no preference is given to the order
 	for _, p := range pools.Items {
-		if (p.Spec.Type == c.resourceType) && utils.CanUsePool(c.context, p.Name) {
+		if (contains(c.resourceTypes, p.Spec.Type)) && utils.CanUsePool(c.context, p.Name) {
 			poolsByName[p.Name] = p
 		}
 	}
 
 	if len(poolsByName) == 0 {
-		c.context.String(http.StatusNotFound, fmt.Sprintf("No available pool found of type %v", c.resourceType))
+		c.context.String(http.StatusNotFound, fmt.Sprintf("No available pool found of type %v", c.resourceTypes))
 		return nil
 	}
 

@@ -60,8 +60,8 @@ type OfcirAcquire struct {
 	Type         string
 }
 
-func (c *OfcirClient) Acquire() (*OfcirAcquire, error) {
-	destUrl := fmt.Sprintf("%s/v1/ofcir?type=host", c.baseUrl)
+func (c *OfcirClient) Acquire(cirtype string) (*OfcirAcquire, error) {
+	destUrl := fmt.Sprintf("%s/v1/ofcir?type="+cirtype, c.baseUrl)
 
 	req, err := http.NewRequest("POST", destUrl, nil)
 	req.Header.Add("X-Ofcirtoken", c.token)
@@ -94,13 +94,13 @@ func (c *OfcirClient) Acquire() (*OfcirAcquire, error) {
 }
 
 func (c *OfcirClient) TryAcquire() *OfcirAcquire {
-	acquire, err := c.Acquire()
+	acquire, err := c.Acquire("host")
 	assert.NoError(c.t, err)
 	return acquire
 }
 
-func (c *OfcirClient) TryAcquireCIR() *ofcirv1.CIResource {
-	acquire, err := c.Acquire()
+func (c *OfcirClient) TryAcquireCIR(cirtype string) *ofcirv1.CIResource {
+	acquire, err := c.Acquire(cirtype)
 	assert.NoError(c.t, err)
 
 	var cir ofcirv1.CIResource
