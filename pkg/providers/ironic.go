@@ -103,8 +103,18 @@ func (p *ironicProvider) UpdateClient(clearcache bool) error {
 					return fmt.Errorf("Error getting image info: %w", err)
 				}
 				instance_info["image_source"] = image.ID
-				instance_info["kernel"] = image.Properties["kernel_id"].(string)
-				instance_info["ramdisk"] = image.Properties["ramdisk_id"].(string)
+
+				// If there is no kernel or ramdisk then its a whole disk images
+				// set the kernel and ramdisk to a blank string to ensure they are cleared
+				kernel_id, k_ok := image.Properties["kernel_id"]
+				ramdisk_id, r_ok := image.Properties["ramdisk_id"]
+				if k_ok && r_ok {
+					instance_info["kernel"] = kernel_id.(string)
+					instance_info["ramdisk"] = ramdisk_id.(string)
+				} else {
+					instance_info["kernel"] = ""
+					instance_info["ramdisk"] = ""
+				}
 			} else {
 				instance_info["image_source"] = p.config.Image
 				instance_info["image_checksum"] = p.config.Image + ".checksum"
