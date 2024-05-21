@@ -131,7 +131,11 @@ func TestPoolsTypes(t *testing.T) {
 	testenv.Test(t, features.New("resource acquisition by type list").
 		Setup(ofcirSetup("pools-different-types", "pool-0,pool-1")).
 		Assess("allows when \"host\" available", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			r := cfg.Client().Resources("ofcir-system")
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
+
+			waitForsPoolReady(t, r)
+
 			cirInfo := c.TryAcquireCIR("host")
 			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
 			return ctx

@@ -2,6 +2,7 @@ package e2etests
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -47,7 +48,7 @@ func NewOfcirClient(t *testing.T, cfg *envconf.Config, token string) *OfcirClien
 	return &OfcirClient{
 		t:       t,
 		r:       cfg.Client().Resources("ofcir-system"),
-		baseUrl: fmt.Sprintf("http://%s:%d", host, port),
+		baseUrl: fmt.Sprintf("https://%s:%d", host, port),
 		token:   token,
 	}
 }
@@ -60,19 +61,30 @@ type OfcirAcquire struct {
 	Type         string
 }
 
-func (c *OfcirClient) Acquire(cirtype string) (*OfcirAcquire, error) {
-	destUrl := fmt.Sprintf("%s/v1/ofcir?type="+cirtype, c.baseUrl)
+func (c *OfcirClient) doRequest(method string, commandUrl string) ([]byte, error) {
+	destUrl := fmt.Sprintf("%s/%s", c.baseUrl, commandUrl)
 
-	req, err := http.NewRequest("POST", destUrl, nil)
+	// Create a custom transport with TLS configuration
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	// Create a new HTTP client with the custom transport
+	client := &http.Client{Transport: tr}
+
+	req, err := http.NewRequest(method, destUrl, nil)
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Add("X-Ofcirtoken", c.token)
-	r, err := http.DefaultClient.Do(req)
+
+	r, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	if r.Status == "401 Unauthorized" {
 		return nil, fmt.Errorf("%q", "401 Unauthorized")
 	}
-
 	defer r.Body.Close()
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -82,6 +94,15 @@ func (c *OfcirClient) Acquire(cirtype string) (*OfcirAcquire, error) {
 
 	if r.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%q", body)
+	}
+
+	return body, nil
+}
+
+func (c *OfcirClient) Acquire(cirtype string) (*OfcirAcquire, error) {
+	body, err := c.doRequest("POST", fmt.Sprintf("v1/ofcir?type=%s", cirtype))
+	if err != nil {
+		return nil, err
 	}
 
 	acquire := &OfcirAcquire{}
@@ -122,18 +143,7 @@ type OfcirStatus struct {
 }
 
 func (c *OfcirClient) Status(id string) (*OfcirStatus, error) {
-	destUrl := fmt.Sprintf("%s/v1/ofcir/%s", c.baseUrl, id)
-
-	req, err := http.NewRequest("GET", destUrl, nil)
-	req.Header.Add("X-Ofcirtoken", c.token)
-
-	r, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Body.Close()
-
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := c.doRequest("GET", fmt.Sprintf("v1/ofcir/%s", id))
 	if err != nil {
 		return nil, err
 	}
@@ -154,18 +164,7 @@ func (c *OfcirClient) TryStatus(id string) *OfcirStatus {
 }
 
 func (c *OfcirClient) Release(id string) (string, error) {
-	destUrl := fmt.Sprintf("%s/v1/ofcir/%s", c.baseUrl, id)
-
-	req, err := http.NewRequest("DELETE", destUrl, nil)
-	req.Header.Add("X-Ofcirtoken", c.token)
-
-	r, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer r.Body.Close()
-
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := c.doRequest("DELETE", fmt.Sprintf("v1/ofcir/%s", id))
 	if err != nil {
 		return "", err
 	}
