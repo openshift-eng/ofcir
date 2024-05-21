@@ -1,0 +1,6 @@
+resources:
+  - ../default
+
+patchesStrategicMerge:
+  - service_patch.yaml
+  - image_pull_policy_patch.yaml
