@@ -14,12 +14,13 @@ metadata:
   namespace: system
 spec:
   ports:
-  - name: http
-    port: 8087
+  - name: https
+    port: 443
+    targetPort: 8443
     protocol: TCP
   selector:
     control-plane: controller-manager
-  type: NodePort
+  type: ClusterIP
 ---
 apiVersion: v1
 kind: Secret
@@ -44,19 +45,17 @@ spec:
   template:
     metadata:
       annotations:
-        kubectl.kubernetes.io/default-container: manager
+        kubectl.kubernetes.io/default-container: ofcir-api
       labels:
         control-plane: controller-manager
     spec:
-      securityContext:
-        runAsUser: 1001
       containers:
       - command:
         - /ofcir-operator
         args:
         - --leader-elect
-        image: ofcir.io/ofcir:latest
-        imagePullPolicy: IfNotPresent
+        image: ofcir-operator-image:latest
+        imagePullPolicy: Always
         name: ofcir-operator
         securityContext:
           allowPrivilegeEscalation: false
@@ -74,8 +73,8 @@ spec:
           periodSeconds: 10
       - command:
         - /ofcir-api
-        image: ofcir.io/ofcir:latest
-        imagePullPolicy: IfNotPresent
+        image: ofcir-operator-image:latest
+        imagePullPolicy: Always
         name: ofcir-api
         securityContext:
           allowPrivilegeEscalation: false
