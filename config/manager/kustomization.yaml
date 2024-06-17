@@ -1,16 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Specify resources to include in the build
 resources:
 - manager.yaml
 
+# Generator options
 generatorOptions:
   disableNameSuffixHash: true
 
-configMapGenerator:
-- files:
-  - controller_manager_config.yaml
-  name: manager-config
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
+# # Generate a ConfigMap from the specified file
+# configMapGenerator:
+# - files:
+#   - controller_manager_config.yaml
+#   name: manager-config
+
+# Specify image replacements
 images:
-- name: controller
-  newName: ofcir
+- name: ofcir-operator-image
+  newName: localhost/ofcir-test
   newTag: latest

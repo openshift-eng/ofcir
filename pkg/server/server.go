@@ -85,12 +85,12 @@ func (o *OfcirAPI) AuthRequired() gin.HandlerFunc {
 		tokens, err := o.corev1.Secrets("ofcir-system").Get(context.Background(), "ofcir-tokens", metav1.GetOptions{})
 		tokenheader := ctx.Request.Header["X-Ofcirtoken"]
 		if (err != nil) || (len(tokenheader) == 0) {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg":"401 Unauthorized"})
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "401 Unauthorized"})
 			return
 		}
 
 		if string(tokens.Data[tokenheader[0]]) == "" {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg":"401 Unauthorized"})
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "401 Unauthorized"})
 			return
 		}
 		ctx.Set("validpools", strings.TrimSpace(string(tokens.Data[tokenheader[0]])))

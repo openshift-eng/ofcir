@@ -1,8 +1,11 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= ofcir:latest
+IMG ?= localhost/ofcir:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
+# KUSTOMIZE_BUILD_DIR defines the root folder to be used for manifests generation
+KUSTOMIZE_BUILD_DIR ?= config/default
+
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -82,13 +85,9 @@ e2e-tests:
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
-.PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
-
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+.PHONY: ofcir-image
+ofcir-image: 
+	podman build -t ${IMG} -f Dockerfile .
 
 ##@ Deployment
 
@@ -112,17 +111,17 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	cd config/manager && $(KUSTOMIZE) edit set image ofcir-operator-image=${IMG}
+	$(KUSTOMIZE) build ${KUSTOMIZE_BUILD_DIR} | kubectl apply -f -
+
+.PHONY: generate-deploy-manifests ## Same as deploy, but the output is stored into $DEPLOY_MANIFESTS_DIR
+generate-deploy-manifests: $(DEPLOY_MANIFESTS_DIR) manifests kustomize 
+	cd config/manager && $(KUSTOMIZE) edit set image ofcir-operator-image=${IMG}
+	$(KUSTOMIZE) build ${KUSTOMIZE_BUILD_DIR} > $(DEPLOY_MANIFESTS_DIR)/ofcir-operator.yaml
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
-
-.PHONY: generate-deploy-manifests
-generate-deploy-manifests: $(DEPLOY_MANIFESTS_DIR) manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > $(DEPLOY_MANIFESTS_DIR)/ofcir-operator.yaml
+	$(KUSTOMIZE) build ${KUSTOMIZE_BUILD_DIR} | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: test-deploy
 test-deploy: generate-deploy-manifests
@@ -144,7 +143,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.8.0
+CONTROLLER_TOOLS_VERSION ?= v0.12.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize

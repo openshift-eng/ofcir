@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.20-alpine3.16 as builder
+FROM docker.io/library/golang:1.20-alpine3.16 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -25,7 +25,7 @@ RUN CGO_ENABLED=1 go build -a -o ofcir-operator main.go
 RUN CGO_ENABLED=0 go build -a -o ofcir-api cmd/ofcir-api/main.go
 
 # Cleanup 
-FROM alpine:3.16
+FROM docker.io/library/alpine:3.16
 
 RUN apk add libc-dev gcc
 RUN apk add libvirt-dev

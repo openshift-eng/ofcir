@@ -42,7 +42,7 @@ func (c *statusCmd) Run() error {
 	}
 
 	if !utils.CanUsePool(c.context, r.Spec.PoolRef.Name) {
-		c.context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg":"401 Unauthorized"})
+		c.context.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "401 Unauthorized"})
 		return nil
 	}
 
