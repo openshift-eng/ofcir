@@ -18,11 +18,11 @@ var client *packngo.Client
 var eqOnce sync.Once
 
 type equinixProviderConfig struct {
-	ProjectID string `json:"projectid"` //project id in equinix
-	Token     string `json:"token"`     //token for authentication
-	Metro     string `json:"metro"`     //server location
-	Plan      string `json:"plan"`      //server size
-	OS        string `json:"os"`        //OS to install
+	ProjectID string   `json:"projectid"` //project id in equinix
+	Token     string   `json:"token"`     //token for authentication
+	Metros    []string `json:"metros"`    //server location
+	Plan      string   `json:"plan"`      //server size
+	OS        string   `json:"os"`        //OS to install
 }
 
 type equinixProvider struct {
@@ -34,7 +34,7 @@ func EquinixProviderFactory(providerInfo string, secretData map[string][]byte) (
 	config := equinixProviderConfig{
 		ProjectID: "",
 		Token:     "",
-		Metro:     "da",
+		Metros:    []string{"da", "ny", "sv"},
 		Plan:      "c3.small.x86",
 		OS:        "rocky_8",
 	}
@@ -79,22 +79,26 @@ func (p *equinixProvider) Acquire(poolSize int, poolName string, poolType string
 	uniqueId := strings.Replace(uuid.New().String(), "-", "", -1)
 	resourceName := fmt.Sprintf("%s-%s", hostPrefix, uniqueId)
 
-	cr := packngo.DeviceCreateRequest{
-		Hostname:  resourceName,
-		Metro:     p.config.Metro,
-		Plan:      p.config.Plan,
-		OS:        p.config.OS,
-		ProjectID: p.config.ProjectID,
-		Tags:      []string{poolName},
+	for _, metro := range p.config.Metros {
+		cr := packngo.DeviceCreateRequest{
+			Hostname:  resourceName,
+			Metro:     metro,
+			Plan:      p.config.Plan,
+			OS:        p.config.OS,
+			ProjectID: p.config.ProjectID,
+			Tags:      []string{poolName},
+		}
+
+		device, _, err := p.client.Devices.Create(&cr)
+		if err != nil {
+			continue
+		}
+
+		resource.Id = device.ID
+		return resource, nil
 	}
 
-	device, _, err := p.client.Devices.Create(&cr)
-	if err != nil {
-		return resource, fmt.Errorf("error creating device: %w", err)
-	}
-
-	resource.Id = device.ID
-	return resource, nil
+	return resource, fmt.Errorf("error creating device: %w", err)
 }
 
 func (p *equinixProvider) AcquireCompleted(id string) (bool, Resource, error) {
