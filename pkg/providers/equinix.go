@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	"github.com/packethost/packngo"
 )
@@ -28,9 +29,10 @@ type equinixProviderConfig struct {
 type equinixProvider struct {
 	config equinixProviderConfig
 	client *packngo.Client
+	logger logr.Logger
 }
 
-func EquinixProviderFactory(providerInfo string, secretData map[string][]byte) (Provider, error) {
+func EquinixProviderFactory(providerInfo string, secretData map[string][]byte, logger logr.Logger) (Provider, error) {
 	config := equinixProviderConfig{
 		ProjectID: "",
 		Token:     "",
@@ -52,6 +54,7 @@ func EquinixProviderFactory(providerInfo string, secretData map[string][]byte) (
 	return &equinixProvider{
 		config: config,
 		client: client,
+		logger: logger,
 	}, nil
 }
 
@@ -91,6 +94,7 @@ func (p *equinixProvider) Acquire(poolSize int, poolName string, poolType string
 
 		device, _, err := p.client.Devices.Create(&cr)
 		if err != nil {
+			p.logger.Error(err, "error creating device, trying next metro", "hostname", resourceName, "metro", metro)
 			continue
 		}
 
