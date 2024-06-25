@@ -328,7 +328,7 @@ func (f *CIResourceFSM) BeforeAnyState(before CIResourceFSMHandler) {
 
 func (f *CIResourceFSM) Process(cir *ofcirv1.CIResource, cipool *ofcirv1.CIPool, cipoolSecret *v1.Secret) (bool, bool, time.Duration, error) {
 
-	provider, err := providers.NewProvider(cipool, cipoolSecret)
+	provider, err := providers.NewProvider(cipool, cipoolSecret, f.logger)
 	if err != nil {
 		return false, false, time.Duration(0), fmt.Errorf("error in provider factory: %w", err)
 	}
