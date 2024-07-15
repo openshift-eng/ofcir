@@ -3,6 +3,7 @@ package providers
 import (
 	"fmt"
 
+	"github.com/go-logr/logr"
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	v1 "k8s.io/api/core/v1"
 )
@@ -17,7 +18,7 @@ const (
 	ProviderIbmcloud ProviderType = "ibmcloud"
 )
 
-func NewProvider(pool *ofcirv1.CIPool, poolSecret *v1.Secret) (Provider, error) {
+func NewProvider(pool *ofcirv1.CIPool, poolSecret *v1.Secret, logger logr.Logger) (Provider, error) {
 
 	switch ProviderType(pool.Spec.Provider) {
 	case ProviderDummy:
@@ -27,7 +28,7 @@ func NewProvider(pool *ofcirv1.CIPool, poolSecret *v1.Secret) (Provider, error) 
 	case ProviderIronic:
 		return IronicProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data)
 	case ProviderEquinix:
-		return EquinixProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data)
+		return EquinixProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data, logger)
 	case ProviderIbmcloud:
 		return IbmcloudProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data)
 	default:
