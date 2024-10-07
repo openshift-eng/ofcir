@@ -1,7 +1,14 @@
-# Build the manager binary
-FROM docker.io/library/golang:1.20-alpine3.16 as builder
+# Build the manager binary using CentOS Stream 9 as the base image
+FROM quay.io/centos/centos:stream9 as builder
 
 WORKDIR /workspace
+
+# Install necessary tools and dependencies in a single RUN command to minimize image layers
+RUN yum -y install epel-release && \
+    yum config-manager --set-enabled crb && \
+    yum -y install gcc glibc-devel glibc-headers libvirt-devel go && \
+    yum clean all
+
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -17,20 +24,25 @@ COPY controllers/ controllers/
 COPY pkg/ pkg/
 
 # Build the operator
-RUN apk add libc-dev gcc
-RUN apk add libvirt-dev
 RUN CGO_ENABLED=1 go build -a -o ofcir-operator main.go
 
 # Build the api server
 RUN CGO_ENABLED=0 go build -a -o ofcir-api cmd/ofcir-api/main.go
 
-# Cleanup 
-FROM docker.io/library/alpine:3.16
+# Cleanup
+RUN yum remove -y gcc glibc-devel glibc-headers libvirt-devel go && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 
-RUN apk add libc-dev gcc
-RUN apk add libvirt-dev
+# Final stage - create the runtime image
+FROM quay.io/centos/centos:stream9 as runtime
 
 WORKDIR /
+
+RUN yum -y install libvirt-libs && \
+    yum clean all
+
+# Copy the binaries from the builder stage
 COPY --from=builder /workspace/ofcir-operator .
 COPY --from=builder /workspace/ofcir-api .
 
