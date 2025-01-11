@@ -30,7 +30,7 @@ type Scenario[R reconcile.Reconciler, T any, PT interface {
 	client.Object
 }] interface {
 	WithSchemes(...func(s *runtime.Scheme) error) Scenario[R, T, PT]
-	Setup(func() []runtime.Object) _reconcileStart[T, PT]
+	Setup(func() []client.Object) _reconcileStart[T, PT]
 }
 
 type _reconcileStart[T any, PT interface {
@@ -83,7 +83,7 @@ type scenario[R reconcile.Reconciler, T any, PT interface {
 	client.Object
 }] struct {
 	schemes      []func(*runtime.Scheme) error
-	setupHandler func() []runtime.Object
+	setupHandler func() []client.Object
 	startObj     types.NamespacedName
 	handlers     []reconcileHandler[PT]
 }
@@ -93,7 +93,7 @@ func (s *scenario[R, T, PT]) WithSchemes(schemes ...func(s *runtime.Scheme) erro
 	return s
 }
 
-func (s *scenario[R, T, PT]) Setup(sh func() []runtime.Object) _reconcileStart[T, PT] {
+func (s *scenario[R, T, PT]) Setup(sh func() []client.Object) _reconcileStart[T, PT] {
 	s.setupHandler = sh
 	return s
 }
@@ -138,7 +138,8 @@ func (s *scenario[R, T, PT]) Test(t *testing.T) {
 	objs := s.setupHandler()
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
-		WithRuntimeObjects(objs...).Build()
+		WithObjects(objs...).
+		WithStatusSubresource(objs...).Build()
 
 	reconciler := s.createReconcilerWithClient(fakeClient)
 
@@ -151,7 +152,10 @@ func (s *scenario[R, T, PT]) Test(t *testing.T) {
 	nextStep := s.handlers[stepIndex]
 	for {
 		_, err = reconciler.Reconcile(context.TODO(), reconcile.Request{NamespacedName: s.startObj})
-		assert.NoError(t, err)
+		if err != nil {
+			assert.NoError(t, err)
+			t.FailNow()
+		}
 
 		latestUpdatedObj := PT(new(T))
 		err := fakeClient.Get(context.TODO(), s.startObj, latestUpdatedObj)
@@ -196,7 +200,7 @@ func (s *scenario[R, T, PT]) createReconcilerWithClient(client client.Client) re
 	return *reconciler
 }
 
-func (s *scenario[R, T, PT]) setStartObj(t *testing.T, objs []runtime.Object) {
+func (s *scenario[R, T, PT]) setStartObj(t *testing.T, objs []client.Object) {
 
 	// If no starting object is defined, let's pick up the first one
 	// from the current cache that matches the configured type PT

@@ -68,7 +68,7 @@ func createKindCluster(clusterName string) env.Func {
 
 		var err error
 		k := kind.NewCluster(clusterName)
-		kubeconfig, err = k.CreateWithConfig("kindest/node:v1.30.0", "kind-config.yaml")
+		kubeconfig, err = k.CreateWithConfig(ctx, "kind-config.yaml")
 		if err != nil {
 			return ctx, err
 		}

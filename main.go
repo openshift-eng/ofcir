@@ -32,6 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/openshift/ofcir/controllers"
@@ -78,16 +79,19 @@ func main() {
 		c.NextProtos = []string{"http/1.1"}
 	}
 
+	metricsServerOptions := metricsserver.Options{
+		BindAddress:   metricsAddr,
+		SecureServing: false,
+		TLSOpts:       []func(config *tls.Config){disableHTTP2},
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  scheme,
-		MetricsBindAddress:      metricsAddr,
-		Port:                    webhookPort,
-		TLSOpts:                 []func(config *tls.Config){disableHTTP2},
+		Metrics:                 metricsServerOptions,
 		HealthProbeBindAddress:  probeAddr,
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "7c25506c.openshift",
 		LeaderElectionNamespace: "ofcir-system",
-		Namespace:               "ofcir-system",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

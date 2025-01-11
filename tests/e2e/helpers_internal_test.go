@@ -166,17 +166,17 @@ func waitForCIRState(t *testing.T, r *resources.Resources, cir *ofcirv1.CIResour
 	}))
 }
 
-func waitFor(t *testing.T, conditionFunc apimachinerywait.ConditionFunc, seconds ...int) {
+func waitFor(t *testing.T, conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) {
 	err := _waitFor(conditionFunc, seconds...)
 	assert.NoError(t, err)
 }
 
-func waitNotFor(t *testing.T, conditionFunc apimachinerywait.ConditionFunc, seconds ...int) {
+func waitNotFor(t *testing.T, conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) {
 	err := _waitFor(conditionFunc, seconds...)
 	assert.Equal(t, apimachinerywait.ErrWaitTimeout, err)
 }
 
-func _waitFor(conditionFunc apimachinerywait.ConditionFunc, seconds ...int) error {
+func _waitFor(conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) error {
 	timeout := 180 * time.Second
 	if len(seconds) > 0 {
 		timeout = time.Duration(seconds[0]) * time.Second

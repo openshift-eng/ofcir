@@ -31,6 +31,7 @@ func cipool() *cipoolBuilder {
 				Priority: 0,
 				State:    ofcirv1.StatePoolAvailable,
 			},
+			Status: ofcirv1.CIPoolStatus{},
 		},
 	}
 }
