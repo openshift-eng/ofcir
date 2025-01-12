@@ -173,7 +173,7 @@ func waitFor(t *testing.T, conditionFunc apimachinerywait.ConditionWithContextFu
 
 func waitNotFor(t *testing.T, conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) {
 	err := _waitFor(conditionFunc, seconds...)
-	assert.Equal(t, apimachinerywait.ErrWaitTimeout, err)
+	assert.Equal(t, context.DeadlineExceeded, err)
 }
 
 func _waitFor(conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) error {
