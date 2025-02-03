@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
@@ -15,8 +14,7 @@ const (
 	hostPrefix string = "ofcir"
 )
 
-var client *packngo.Client
-var eqOnce sync.Once
+var eqClients = make(map[string]*packngo.Client)
 
 type equinixProviderConfig struct {
 	ProjectID string   `json:"projectid"` //project id in equinix
@@ -47,13 +45,15 @@ func EquinixProviderFactory(providerInfo string, secretData map[string][]byte, l
 		}
 	}
 
-	eqOnce.Do(func() {
-		client = packngo.NewClientWithAuth("packngo lib", config.Token, nil)
-	})
+	key := config.ProjectID + config.Token
+
+	if _, ok := eqClients[key]; !ok {
+		eqClients[key] = packngo.NewClientWithAuth("packngo lib", config.Token, nil)
+	}
 
 	return &equinixProvider{
 		config: config,
-		client: client,
+		client: eqClients[key],
 		logger: logger,
 	}, nil
 }
