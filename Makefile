@@ -79,7 +79,7 @@ unit-tests: fmt vet
 
 .PHONY: e2e-tests
 e2e-tests: 
-	go test ./tests/e2e/...
+	go test -v ./tests/e2e/...
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -142,8 +142,8 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.12.0
+KUSTOMIZE_VERSION ?= v5.5.0
+CONTROLLER_TOOLS_VERSION ?= v0.17.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
