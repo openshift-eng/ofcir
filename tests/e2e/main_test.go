@@ -43,8 +43,8 @@ func TestMain(m *testing.M) {
 	testenv = env.New()
 
 	testenv.Setup(
-		createKindCluster(kindClusterName),
-		buildAndLoadOfcirImage,
+		// createKindCluster(kindClusterName),
+		// buildAndLoadOfcirImage,
 		deployOfcirOperator,
 	)
 

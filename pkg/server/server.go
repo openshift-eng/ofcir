@@ -43,11 +43,11 @@ func (o *OfcirAPI) Init(kubeconfig string) error {
 	var err error
 	var config *rest.Config
 
-	// Use this option when running outside the cluster
 	if kubeconfig != "" {
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	} else {
-		config, err = rest.InClusterConfig()
+		// config, err = rest.InClusterConfig()
+        kubeconfig = "/root/.kube/config"
 	}
 	if err != nil {
 		return err
