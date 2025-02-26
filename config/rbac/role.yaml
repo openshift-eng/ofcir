@@ -21,32 +21,6 @@ rules:
   - ofcir.openshift
   resources:
   - cipools
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ofcir.openshift
-  resources:
-  - cipools/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - ofcir.openshift
-  resources:
-  - cipools/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ofcir.openshift
-  resources:
   - ciresources
   verbs:
   - create
@@ -60,12 +34,14 @@ rules:
 - apiGroups:
   - ofcir.openshift
   resources:
+  - cipools/finalizers
   - ciresources/finalizers
   verbs:
   - update
 - apiGroups:
   - ofcir.openshift
   resources:
+  - cipools/status
   - ciresources/status
   verbs:
   - get

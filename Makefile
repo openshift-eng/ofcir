@@ -1,10 +1,12 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= localhost/ofcir:latest
+IMG ?= localhost/ofcir-test:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
 # KUSTOMIZE_BUILD_DIR defines the root folder to be used for manifests generation
 KUSTOMIZE_BUILD_DIR ?= config/default
+CONTAINER_NAME=e2e-test
+LOG_FILE=e2e-test.log
 
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -81,13 +83,36 @@ unit-tests: fmt vet
 e2e-tests: 
 	go test ./tests/e2e/...
 
+e2e-tests-container: delete-cluster cleantmp create-cluster ofcir-image export-ofcir-image load-ofcir-image
+
+	docker run --name e2e-test --rm \
+	 --network host \
+	-v $(PWD):/app \
+	-v $(HOME)/.kube:/root/.kube \
+	-e KUBECONFIG=/root/.kube/config \
+	-e KUBERNETES_SERVICE_HOST=127.0.0.1 \
+    -e KUBERNETES_SERVICE_PORT=6443 \
+	-w /app golang:1.23 bash -c "apt-get update &&  apt-get install -y make git docker.io libvirt-dev pkg-config curl && curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.23.0/bin/linux/amd64/kubectl && chmod +x kubectl &&  mv kubectl /usr/local/bin/ &&  go install sigs.k8s.io/controller-tools/cmd/controller-ge@$(CONTROLLER_TOOLS_VERSION) &&  go mod tidy &&  make e2e-tests"
+
+cleantmp:
+	rm -rf  /tmp/ofcir-latest.tar
+
+export-ofcir-image:
+	podman save -o /tmp/ofcir-latest.tar localhost/ofcir-test:latest
+
+copy-e2e-logs:
+	podman cp $(CONTAINER_NAME):/app/$(LOG_FILE) ./$(LOG_FILE)
+
+load-ofcir-image:
+	/usr/local/bin/kind load image-archive --name ofcir-test /tmp/ofcir-latest.tar
+
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: ofcir-image
 ofcir-image: 
-	podman build -t ${IMG} -f Dockerfile .
+	docker build -t ${IMG} -f Dockerfile .
 
 ##@ Deployment
 
@@ -163,3 +188,9 @@ $(ENVTEST): $(LOCALBIN)
 
 .PHONY: runapi
 runapi: manifests generate fmt vet ## Run a controller from your host.
+
+create-cluster:
+	/usr/local/bin/kind create cluster --name ofcir-test --image kindest/node:v1.30.0 --config tests/e2e/kind-config.yaml
+
+delete-cluster:
+	/usr/local/bin/kind delete cluster --name ofcir-test
