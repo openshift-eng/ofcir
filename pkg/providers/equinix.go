@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -17,11 +18,12 @@ const (
 var eqClients = make(map[string]*packngo.Client)
 
 type equinixProviderConfig struct {
-	ProjectID string   `json:"projectid"` //project id in equinix
-	Token     string   `json:"token"`     //token for authentication
-	Metros    []string `json:"metros"`    //server location
-	Plan      string   `json:"plan"`      //server size
-	OS        string   `json:"os"`        //OS to install
+	ProjectID string   `json:"projectid"`          //project id in equinix
+	Token     string   `json:"token"`              //token for authentication
+	Metros    []string `json:"metros"`             //server location
+	Plan      string   `json:"plan"`               //server size
+	OS        string   `json:"os"`                 //OS to install
+	UserData  string   `json:"userdata,omitempty"` //Cloud-init user-data script for initial server setup
 }
 
 type equinixProvider struct {
@@ -37,12 +39,23 @@ func EquinixProviderFactory(providerInfo string, secretData map[string][]byte, l
 		Metros:    []string{"da", "ny", "sv"},
 		Plan:      "c3.small.x86",
 		OS:        "rocky_8",
+		UserData:  "",
 	}
 
 	if configJson, ok := secretData["config"]; ok {
 		if err := json.Unmarshal(configJson, &config); err != nil {
 			return nil, fmt.Errorf("error in provider config json: %w", err)
 		}
+	}
+
+	if config.UserData != "" {
+		// Provided userdata from secret should be base64 encoded
+		decodedBytes, err := base64.StdEncoding.DecodeString(config.UserData)
+		if err != nil {
+			return nil, fmt.Errorf("error decoding userdata: %w", err)
+		}
+
+		config.UserData = string(decodedBytes)
 	}
 
 	key := config.ProjectID + config.Token
@@ -90,6 +103,7 @@ func (p *equinixProvider) Acquire(poolSize int, poolName string, poolType string
 			OS:        p.config.OS,
 			ProjectID: p.config.ProjectID,
 			Tags:      []string{poolName},
+			UserData:  p.config.UserData,
 		}
 
 		device, _, err := p.client.Devices.Create(&cr)
