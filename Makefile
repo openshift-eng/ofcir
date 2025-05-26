@@ -47,7 +47,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: generate-mocks controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
@@ -66,6 +66,11 @@ test: manifests generate fmt vet envtest ## Run tests.
 docs: ## Generate the doc assests
 	dot -Tpng docs/cir-states.dot -o docs/cir-states.png
 
+.PHONY: generate-mocks
+generate-mocks:
+	find . -name 'mock_*.go' -type f -not -path './vendor/*' -delete
+	go generate -v $(shell go list ./...)
+
 ##@ Build
 
 .PHONY: build
@@ -79,7 +84,7 @@ unit-tests: fmt vet
 
 .PHONY: e2e-tests
 e2e-tests: 
-	go test ./tests/e2e/...
+	go test -v ./tests/e2e/...
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.

@@ -16,6 +16,7 @@ const (
 	ProviderIronic   ProviderType = "ironic"
 	ProviderEquinix  ProviderType = "equinix"
 	ProviderIbmcloud ProviderType = "ibmcloud"
+	ProviderAWS      ProviderType = "aws"
 )
 
 func NewProvider(pool *ofcirv1.CIPool, poolSecret *v1.Secret, logger logr.Logger) (Provider, error) {
@@ -31,6 +32,8 @@ func NewProvider(pool *ofcirv1.CIPool, poolSecret *v1.Secret, logger logr.Logger
 		return EquinixProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data, logger)
 	case ProviderIbmcloud:
 		return IbmcloudProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data)
+	case ProviderAWS:
+		return AWSProviderFactory(pool.Spec.ProviderInfo, poolSecret.Data, logger)
 	default:
 		return nil, fmt.Errorf("unknown provider type: %s", pool.Spec.Provider)
 	}
