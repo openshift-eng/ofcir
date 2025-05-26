@@ -8,7 +8,6 @@ import (
 	"github.com/openshift/ofcir/pkg/reconcilertest"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -125,12 +124,12 @@ func TestCIResourceReconcilerFallbacks(t *testing.T) {
 		{
 			name: "delete available fallback resource",
 			testCase: newCIResourceScenario().
-				Setup(func() []runtime.Object {
+				Setup(func() []client.Object {
 					cip, secret := cipoolWithSecret()
 					cip.priority(-1)
 					cir := cir("cir-0").pool(cip.Name)
 
-					return []runtime.Object{
+					return []client.Object{
 						cir.build(), cip.build(), secret,
 					}
 				}).
@@ -147,12 +146,12 @@ func TestCIResourceReconcilerFallbacks(t *testing.T) {
 		{
 			name: "do not release fallback dummy resources (just cleanup)",
 			testCase: newCIResourceScenario().
-				Setup(func() []runtime.Object {
+				Setup(func() []client.Object {
 					cip, secret := cipoolWithSecret()
 					cip.priority(-1)
 					cir := cir("cir-0").pool(cip.Name)
 
-					return []runtime.Object{
+					return []client.Object{
 						cir.build(), cip.build(), secret,
 					}
 				}).
@@ -188,21 +187,21 @@ func newCIResourceScenario() reconcilertest.Scenario[CIResourceReconciler, ofcir
 		WithSchemes(ofcirv1.AddToScheme, corev1.AddToScheme)
 }
 
-func scenarioPoolWithSingleCir() []runtime.Object {
+func scenarioPoolWithSingleCir() []client.Object {
 	cip, secret := cipoolWithSecret()
 	cir := cir("cir-0").pool(cip.Name)
 
-	return []runtime.Object{
+	return []client.Object{
 		cir.build(), cip.build(), secret,
 	}
 }
 
-func scenarioWithEmptyPool() []runtime.Object {
+func scenarioWithEmptyPool() []client.Object {
 
 	cip, secret := cipoolWithSecret()
 	cip.size(0)
 
-	return []runtime.Object{
+	return []client.Object{
 		cip.build(), secret,
 	}
 
