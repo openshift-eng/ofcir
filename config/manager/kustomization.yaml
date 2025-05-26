@@ -18,5 +18,5 @@ generatorOptions:
 # Specify image replacements
 images:
 - name: ofcir-operator-image
-  newName: localhost/ofcir-test
+  newName: localhost/ofcir
   newTag: latest
