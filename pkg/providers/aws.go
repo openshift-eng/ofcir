@@ -2,7 +2,6 @@ package providers
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -364,15 +363,6 @@ func AWSProviderFactory(providerInfo string, secretData map[string][]byte, logge
 		if err := json.Unmarshal(configJson, &config); err != nil {
 			return nil, fmt.Errorf("error in provider config json: %w", err)
 		}
-	}
-
-	if config.UserData != "" {
-		// Provided userdata from secret should be base64 encoded
-		decodedBytes, err := base64.StdEncoding.DecodeString(config.UserData)
-		if err != nil {
-			return nil, fmt.Errorf("error decoding userdata: %w", err)
-		}
-		config.UserData = string(decodedBytes)
 	}
 
 	awsHandler, err := NewAWSHandler(config.AccessKey, config.SecretAccessKey, logger)
