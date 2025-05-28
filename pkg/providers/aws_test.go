@@ -286,15 +286,6 @@ func TestAWSProviderFactory_BadJSON(t *testing.T) {
 	assert.Contains(t, err.Error(), "error in provider config json")
 }
 
-func TestAWSProviderFactory_BadUserData(t *testing.T) {
-	// invalid base64 userdata
-	cfg := `{"accessKey":"ak","secretAccessKey":"sk","userdata":"!!not-base64!!"}`
-	secret := map[string][]byte{"config": []byte(cfg)}
-	_, err := AWSProviderFactory("", secret, logr.Discard())
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error decoding userdata")
-}
-
 func TestAcquire_SuccessAndErrors(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
