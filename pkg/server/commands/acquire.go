@@ -110,7 +110,7 @@ func (c *acquireCmd) Run() error {
 		return nil
 	}
 
-	c.context.String(http.StatusNotFound, "No available resource found")
+	c.context.String(http.StatusNotFound, fmt.Sprintf("No available resource found of type %v", c.resourceTypes))
 	return nil
 }
 

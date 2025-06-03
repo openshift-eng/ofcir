@@ -51,7 +51,7 @@ func TestAcquireAllResources(t *testing.T) {
 
 			// Next acquire must fail
 			_, err := c.Acquire("host")
-			assert.ErrorContains(t, err, "No available resource found")
+			assert.ErrorContains(t, err, "No available resource found of type [host]")
 
 			return ctx
 		}).
@@ -118,7 +118,7 @@ func TestPoolsToken(t *testing.T) {
 
 			_, e := c.Acquire("host")
 			if assert.Error(t, e) {
-				assert.Equal(t, fmt.Errorf("%q", "No available resource found"), e)
+				assert.Equal(t, fmt.Errorf("%q", "No available resource found of type [host]"), e)
 			}
 			return ctx
 		}).
@@ -144,7 +144,7 @@ func TestPoolsTypes(t *testing.T) {
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 			_, e := c.Acquire("host")
 			if assert.Error(t, e) {
-				assert.Equal(t, fmt.Errorf("%q", "No available resource found"), e)
+				assert.Equal(t, fmt.Errorf("%q", "No available resource found of type [host]"), e)
 			}
 			return ctx
 		}).
