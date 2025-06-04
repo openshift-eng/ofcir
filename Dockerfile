@@ -4,10 +4,10 @@ FROM quay.io/centos/centos:stream9 as builder
 WORKDIR /workspace
 
 # Install necessary tools and dependencies in a single RUN command to minimize image layers
-RUN yum -y install epel-release && \
-    yum config-manager --set-enabled crb && \
-    yum -y install gcc glibc-devel glibc-headers libvirt-devel go && \
-    yum clean all
+RUN dnf -y install epel-release && \
+    dnf config-manager --set-enabled crb && \
+    dnf -y install gcc glibc-devel glibc-headers libvirt-devel go && \
+    dnf clean all
 
 # Copy the Go Modules manifests
 COPY go.mod go.mod
@@ -30,8 +30,8 @@ RUN CGO_ENABLED=1 go build -a -o ofcir-operator main.go
 RUN CGO_ENABLED=0 go build -a -o ofcir-api cmd/ofcir-api/main.go
 
 # Cleanup
-RUN yum remove -y gcc glibc-devel glibc-headers libvirt-devel go && \
-    yum clean all && \
+RUN dnf remove -y gcc glibc-devel glibc-headers libvirt-devel go && \
+    dnf clean all && \
     rm -rf /var/cache/yum
 
 # Final stage - create the runtime image
@@ -39,8 +39,8 @@ FROM quay.io/centos/centos:stream9 as runtime
 
 WORKDIR /
 
-RUN yum -y install libvirt-libs && \
-    yum clean all
+RUN dnf -y install libvirt-libs && \
+    dnf clean all
 
 # Copy the binaries from the builder stage
 COPY --from=builder /workspace/ofcir-operator .
