@@ -1,6 +1,10 @@
 resources:
-  - ../default
+- ../default
 
-patchesStrategicMerge:
-  - service_patch.yaml
-  - image_pull_policy_patch.yaml
+patches:
+  - path: service_patch.yaml
+    target:
+      kind: Service
+  - path: image_pull_policy_patch.yaml
+    target:
+      kind: Deployment
