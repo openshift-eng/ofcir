@@ -67,9 +67,9 @@ docs: ## Generate the doc assests
 	dot -Tpng docs/cir-states.dot -o docs/cir-states.png
 
 .PHONY: generate-mocks
-generate-mocks:
+generate-mocks: mockgen
 	find . -name 'mock_*.go' -type f -not -path './vendor/*' -delete
-	go generate -v $(shell go list ./...)
+	PATH=$(LOCALBIN):$$PATH go generate -v $(shell go list ./...)
 
 ##@ Build
 
@@ -145,10 +145,12 @@ $(LOCALBIN):
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+MOCKGEN ?= $(LOCALBIN)/mockgen
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
+MOCKGEN_VERSION ?= v1.6.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -165,6 +167,11 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: mockgen
+mockgen: $(MOCKGEN) ## Download mockgen locally if necessary.
+$(MOCKGEN): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install github.com/golang/mock/mockgen@$(MOCKGEN_VERSION)
 
 .PHONY: runapi
 runapi: manifests generate fmt vet ## Run a controller from your host.
