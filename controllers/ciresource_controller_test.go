@@ -130,9 +130,15 @@ func TestCIResourceReconcilerFallbacks(t *testing.T) {
 					cip.priority(-1)
 					cir := cir("cir-0").pool(cip.Name)
 
-					return []runtime.Object{
+					objects := []client.Object{
 						cir.build(), cip.build(), secret,
 					}
+
+					result := make([]runtime.Object, len(objects))
+					for i, obj := range objects {
+						result[i] = obj
+					}
+					return result
 				}).
 				ReconcileUntil(func(client client.Client, cir *ofcirv1.CIResource) bool {
 					return cir.Status.State == ofcirv1.StateAvailable
@@ -152,9 +158,15 @@ func TestCIResourceReconcilerFallbacks(t *testing.T) {
 					cip.priority(-1)
 					cir := cir("cir-0").pool(cip.Name)
 
-					return []runtime.Object{
+					objects := []client.Object{
 						cir.build(), cip.build(), secret,
 					}
+
+					result := make([]runtime.Object, len(objects))
+					for i, obj := range objects {
+						result[i] = obj
+					}
+					return result
 				}).
 				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
 					return obj.Status.State == ofcirv1.StateAvailable
@@ -192,18 +204,28 @@ func scenarioPoolWithSingleCir() []runtime.Object {
 	cip, secret := cipoolWithSecret()
 	cir := cir("cir-0").pool(cip.Name)
 
-	return []runtime.Object{
+	objects := []client.Object{
 		cir.build(), cip.build(), secret,
 	}
+
+	result := make([]runtime.Object, len(objects))
+	for i, obj := range objects {
+		result[i] = obj
+	}
+	return result
 }
 
 func scenarioWithEmptyPool() []runtime.Object {
-
 	cip, secret := cipoolWithSecret()
 	cip.size(0)
 
-	return []runtime.Object{
+	objects := []client.Object{
 		cip.build(), secret,
 	}
 
+	result := make([]runtime.Object, len(objects))
+	for i, obj := range objects {
+		result[i] = obj
+	}
+	return result
 }
