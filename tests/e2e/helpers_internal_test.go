@@ -2,6 +2,7 @@ package e2etests
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -11,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
@@ -40,14 +40,14 @@ func ofcirSetup(testDataFile string, pools string) func(ctx context.Context, t *
 		cs, _ := kubernetes.NewForConfig(cfg.Client().RESTConfig())
 		secretclient := cs.CoreV1().Secrets("ofcir-system")
 
-		secret, err := secretclient.Get(context.Background(), "ofcir-tokens", v1.GetOptions{})
+		secret, err := secretclient.Get(context.Background(), "ofcir-tokens", metav1.GetOptions{})
 		assert.NoError(t, err)
 
 		secret.Data = map[string][]byte{
 			token: []byte(pools),
 		}
 
-		_, err = secretclient.Update(context.Background(), secret, v1.UpdateOptions{})
+		_, err = secretclient.Update(context.Background(), secret, metav1.UpdateOptions{})
 		assert.NoError(t, err)
 
 		return ctx
@@ -127,7 +127,7 @@ func waitForsPoolReady(t *testing.T, r *resources.Resources) (*ofcirv1.CIPoolLis
 
 func waitForPoolReady(t *testing.T, r *resources.Resources, poolName string) (*ofcirv1.CIPool, *ofcirv1.CIResourceList) {
 	pool := ofcirv1.CIPool{
-		ObjectMeta: v1.ObjectMeta{Name: poolName, Namespace: "ofcir-system"},
+		ObjectMeta: metav1.ObjectMeta{Name: poolName, Namespace: "ofcir-system"},
 	}
 
 	// Wait until pool reaches the required size
@@ -166,17 +166,24 @@ func waitForCIRState(t *testing.T, r *resources.Resources, cir *ofcirv1.CIResour
 	}))
 }
 
-func waitFor(t *testing.T, conditionFunc apimachinerywait.ConditionFunc, seconds ...int) {
+func waitFor(t *testing.T, conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) {
 	err := _waitFor(conditionFunc, seconds...)
 	assert.NoError(t, err)
 }
 
-func waitNotFor(t *testing.T, conditionFunc apimachinerywait.ConditionFunc, seconds ...int) {
+func waitNotFor(t *testing.T, conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) {
 	err := _waitFor(conditionFunc, seconds...)
-	assert.Equal(t, apimachinerywait.ErrWaitTimeout, err)
+
+	// Handle both old and new timeout error types for compatibility
+	isTimeoutError := errors.Is(err, apimachinerywait.ErrWaitTimeout) ||
+		errors.Is(err, context.DeadlineExceeded) ||
+		err != nil && err.Error() == "timed out waiting for the condition"
+
+	assert.True(t, isTimeoutError,
+		"Expected a timeout error (ErrWaitTimeout or DeadlineExceeded), got: %v (type: %T)", err, err)
 }
 
-func _waitFor(conditionFunc apimachinerywait.ConditionFunc, seconds ...int) error {
+func _waitFor(conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) error {
 	timeout := 180 * time.Second
 	if len(seconds) > 0 {
 		timeout = time.Duration(seconds[0]) * time.Second

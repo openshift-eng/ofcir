@@ -8,7 +8,6 @@ import (
 	"github.com/openshift/ofcir/pkg/reconcilertest"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -125,14 +124,20 @@ func TestCIResourceReconcilerFallbacks(t *testing.T) {
 		{
 			name: "delete available fallback resource",
 			testCase: newCIResourceScenario().
-				Setup(func() []runtime.Object {
+				Setup(func() []client.Object {
 					cip, secret := cipoolWithSecret()
 					cip.priority(-1)
 					cir := cir("cir-0").pool(cip.Name)
 
-					return []runtime.Object{
+					objects := []client.Object{
 						cir.build(), cip.build(), secret,
 					}
+
+					result := make([]client.Object, len(objects))
+					for i, obj := range objects {
+						result[i] = obj
+					}
+					return result
 				}).
 				ReconcileUntil(func(client client.Client, cir *ofcirv1.CIResource) bool {
 					return cir.Status.State == ofcirv1.StateAvailable
@@ -147,14 +152,20 @@ func TestCIResourceReconcilerFallbacks(t *testing.T) {
 		{
 			name: "do not release fallback dummy resources (just cleanup)",
 			testCase: newCIResourceScenario().
-				Setup(func() []runtime.Object {
+				Setup(func() []client.Object {
 					cip, secret := cipoolWithSecret()
 					cip.priority(-1)
 					cir := cir("cir-0").pool(cip.Name)
 
-					return []runtime.Object{
+					objects := []client.Object{
 						cir.build(), cip.build(), secret,
 					}
+
+					result := make([]client.Object, len(objects))
+					for i, obj := range objects {
+						result[i] = obj
+					}
+					return result
 				}).
 				ReconcileUntil(func(client client.Client, obj *ofcirv1.CIResource) bool {
 					return obj.Status.State == ofcirv1.StateAvailable
@@ -188,22 +199,32 @@ func newCIResourceScenario() reconcilertest.Scenario[CIResourceReconciler, ofcir
 		WithSchemes(ofcirv1.AddToScheme, corev1.AddToScheme)
 }
 
-func scenarioPoolWithSingleCir() []runtime.Object {
+func scenarioPoolWithSingleCir() []client.Object {
 	cip, secret := cipoolWithSecret()
 	cir := cir("cir-0").pool(cip.Name)
 
-	return []runtime.Object{
+	objects := []client.Object{
 		cir.build(), cip.build(), secret,
 	}
+
+	result := make([]client.Object, len(objects))
+	for i, obj := range objects {
+		result[i] = obj
+	}
+	return result
 }
 
-func scenarioWithEmptyPool() []runtime.Object {
-
+func scenarioWithEmptyPool() []client.Object {
 	cip, secret := cipoolWithSecret()
 	cip.size(0)
 
-	return []runtime.Object{
+	objects := []client.Object{
 		cip.build(), secret,
 	}
 
+	result := make([]client.Object, len(objects))
+	for i, obj := range objects {
+		result[i] = obj
+	}
+	return result
 }
