@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # Enable version updates for Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "openshift-eng/ofcir-maintainers"
+    assignees:
+      - "openshift-eng/ofcir-maintainers"
+    commit-message:
+      prefix: "go"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "go"
+    groups:
+      # Group AWS SDK updates together
+      aws-sdk:
+        patterns:
+          - "github.com/aws/aws-sdk-go-v2*"
+          - "github.com/aws/smithy-go"
+      # Group Kubernetes related updates
+      kubernetes:
+        patterns:
+          - "k8s.io/*"
+          - "sigs.k8s.io/*"
+      # Group testing dependencies
+      testing:
+        patterns:
+          - "github.com/onsi/ginkgo*"
+          - "github.com/onsi/gomega*"
+          - "github.com/stretchr/testify"
+          - "sigs.k8s.io/e2e-framework"
+
+  # Enable version updates for GitHub Actions (when they exist)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "openshift-eng/ofcir-maintainers"
+    assignees:
+      - "openshift-eng/ofcir-maintainers"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
