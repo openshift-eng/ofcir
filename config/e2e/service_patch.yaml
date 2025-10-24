@@ -6,8 +6,8 @@ metadata:
 spec:
   type: NodePort
   ports:
-    - name: https
+    - name: http
       nodePort: 30007
-      port: 443
+      port: 80
       protocol: TCP
-      targetPort: 8443
+      targetPort: 8087
