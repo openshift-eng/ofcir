@@ -9,7 +9,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.17.3
   name: cipools.ofcir.openshift
 spec:
   group: ofcir.openshift
@@ -53,10 +53,19 @@ spec:
         description: CIPool is the Schema for the cipools API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -70,16 +79,19 @@ spec:
                 description: Identifies the kind of the pool
                 type: string
               providerInfo:
-                description: Store any useful instance info specific to the current provider type
+                description: Store any useful instance info specific to the current
+                  provider type
                 type: string
               size:
-                description: Desired number of instances maintained by the current pool
+                description: Desired number of instances maintained by the current
+                  pool
                 type: integer
               state:
                 description: Required state of the pool
                 type: string
               timeout:
-                description: Specify how long a CIR instance will be allowed to remain in the inuse state
+                description: Specify how long a CIR instance will be allowed to remain
+                  in the inuse state
                 type: string
               type:
                 description: The type of the resources managed by the pool
@@ -100,7 +112,8 @@ spec:
                 format: date-time
                 type: string
               size:
-                description: Current number of instances maintained by the current pool
+                description: Current number of instances maintained by the current
+                  pool
                 type: integer
               state:
                 description: Current state of the pool
@@ -119,7 +132,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.17.3
   name: ciresources.ofcir.openshift
 spec:
   group: ofcir.openshift
@@ -160,13 +173,23 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: CIResource represents a physical allocated instance (or set of instances) from a specific pool
+        description: CIResource represents a physical allocated instance (or set of
+          instances) from a specific pool
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -177,10 +200,17 @@ spec:
                 description: Additional information to support clusters
                 type: string
               poolRef:
-                description: Reference to the CIPool that is managing the current CIResource
+                description: Reference to the CIPool that is managing the current
+                  CIResource
                 properties:
                   name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
@@ -203,14 +233,17 @@ spec:
                 description: Public IPv4 address
                 type: string
               extra:
-                description: This field may contain extra data that may vary depending on the specific resource type used
+                description: |-
+                  This field may contain extra data that may vary depending on the
+                  specific resource type used
                 type: string
               lastUpdated:
                 description: LastUpdated identifies when this status was last observed.
                 format: date-time
                 type: string
               providerInfo:
-                description: Store any useful instance info specific to the current provider type
+                description: Store any useful instance info specific to the current
+                  provider type
                 type: string
               resourceId:
                 description: The unique identifier of the resource currently requested
@@ -253,6 +286,44 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  name: ofcir-leader-election-role
+  namespace: ofcir-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
   name: ofcir-manager-role
   namespace: ofcir-system
 rules:
@@ -272,32 +343,6 @@ rules:
   - ofcir.openshift
   resources:
   - cipools
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ofcir.openshift
-  resources:
-  - cipools/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - ofcir.openshift
-  resources:
-  - cipools/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ofcir.openshift
-  resources:
   - ciresources
   verbs:
   - create
@@ -311,12 +356,14 @@ rules:
 - apiGroups:
   - ofcir.openshift
   resources:
+  - cipools/finalizers
   - ciresources/finalizers
   verbs:
   - update
 - apiGroups:
   - ofcir.openshift
   resources:
+  - cipools/status
   - ciresources/status
   verbs:
   - get
@@ -336,6 +383,20 @@ subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
   name: ofcir-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ofcir-leader-election-rolebinding
+  namespace: ofcir-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ofcir-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: ofcir-controller-manager
+  namespace: ofcir-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -368,8 +429,12 @@ metadata:
   namespace: ofcir-system
 spec:
   ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8087
   - name: https
-    port: 443
+    port: 8443
     protocol: TCP
     targetPort: 8443
   selector:
@@ -397,27 +462,9 @@ spec:
     spec:
       containers:
       - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8087/
-        - --logtostderr=true
-        - --ignore-paths=/v1/ofcir,/v1/ofcir/*
-        - --v=0
-        image: registry.k8s.io/kubebuilder/kube-rbac-proxy:v0.16.0
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 5m
-            memory: 64Mi
-      - args:
+        - --leader-elect
         - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
+        - --metrics-bind-address=:8443
         command:
         - /ofcir-operator
         image: localhost/ofcir:latest
@@ -429,6 +476,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: ofcir-operator
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz

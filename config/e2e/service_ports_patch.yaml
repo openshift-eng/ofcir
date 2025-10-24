@@ -1,0 +1,11 @@
+- op: replace
+  path: /spec/type
+  value: NodePort
+- op: replace
+  path: /spec/ports
+  value:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8087
+      nodePort: 30007

@@ -2,18 +2,14 @@ package e2etests
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"testing"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 )
@@ -29,32 +25,14 @@ type OfcirClient struct {
 }
 
 func NewOfcirClient(t *testing.T, cfg *envconf.Config, token string) *OfcirClient {
-
-	rawUrl := cfg.Client().RESTConfig().Host
-	u, err := url.Parse(rawUrl)
-	require.NoError(t, err)
-	host, _, err := net.SplitHostPort(u.Host)
-	require.NoError(t, err)
-
-	var service v1.Service
-	err = cfg.Client().Resources().Get(context.Background(), "ofcir-service", ofcirNamespace, &service)
-	require.NoError(t, err)
-
-	if len(service.Spec.Ports) != 1 {
-		t.Fatalf("found more than one port defined for the ofcir-service")
-		return nil
-	}
-	port := service.Spec.Ports[0].NodePort
+	host := kindNodeHost(t, cfg)
+	port := serviceNodePort(t, cfg, "ofcir-service", "http")
 
 	return &OfcirClient{
-		t: t,
-		r: cfg.Client().Resources(ofcirNamespace),
-		client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		},
-		baseUrl: fmt.Sprintf("https://%s:%d", host, port),
+		t:       t,
+		r:       cfg.Client().Resources(ofcirNamespace),
+		client:  &http.Client{},
+		baseUrl: fmt.Sprintf("http://%s:%d", host, port),
 		token:   token,
 	}
 }

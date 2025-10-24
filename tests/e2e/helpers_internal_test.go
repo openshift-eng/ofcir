@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -23,7 +25,38 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 
 	apimachinerywait "k8s.io/apimachinery/pkg/util/wait"
+	v1 "k8s.io/api/core/v1"
 )
+
+// kindNodeHost returns the host used to reach NodePort services in the test cluster.
+func kindNodeHost(t *testing.T, cfg *envconf.Config) string {
+	t.Helper()
+
+	rawURL := cfg.Client().RESTConfig().Host
+	u, err := url.Parse(rawURL)
+	require.NoError(t, err)
+	host, _, err := net.SplitHostPort(u.Host)
+	require.NoError(t, err)
+	return host
+}
+
+// serviceNodePort returns the NodePort for a named port on a Service.
+func serviceNodePort(t *testing.T, cfg *envconf.Config, serviceName, portName string) int32 {
+	t.Helper()
+
+	var service v1.Service
+	err := cfg.Client().Resources().Get(context.Background(), serviceName, ofcirNamespace, &service)
+	require.NoError(t, err)
+
+	for _, port := range service.Spec.Ports {
+		if port.Name == portName {
+			require.NotZero(t, port.NodePort, "service %s port %s has no NodePort", serviceName, portName)
+			return port.NodePort
+		}
+	}
+	t.Fatalf("service %s has no port named %q", serviceName, portName)
+	return 0
+}
 
 // This file contains a number of helper functions capturing the most common actions useful for writing the e2e test
 // Their usage it's recommended also for improving the readability of the e2e tests
@@ -195,8 +228,9 @@ func waitForCIRStateStable(t *testing.T, r *resources.Resources, cir *ofcirv1.CI
 }
 
 func waitFor(t *testing.T, conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) {
+	t.Helper()
 	err := _waitFor(conditionFunc, seconds...)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func waitNotFor(t *testing.T, conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) {
