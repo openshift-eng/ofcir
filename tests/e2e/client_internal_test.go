@@ -2,7 +2,6 @@ package e2etests
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -48,7 +47,7 @@ func NewOfcirClient(t *testing.T, cfg *envconf.Config, token string) *OfcirClien
 	return &OfcirClient{
 		t:       t,
 		r:       cfg.Client().Resources("ofcir-system"),
-		baseUrl: fmt.Sprintf("https://%s:%d", host, port),
+		baseUrl: fmt.Sprintf("http://%s:%d", host, port),
 		token:   token,
 	}
 }
@@ -64,13 +63,8 @@ type OfcirAcquire struct {
 func (c *OfcirClient) doRequest(method string, commandUrl string) ([]byte, error) {
 	destUrl := fmt.Sprintf("%s/%s", c.baseUrl, commandUrl)
 
-	// Create a custom transport with TLS configuration
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	// Create a new HTTP client with the custom transport
-	client := &http.Client{Transport: tr}
+	// Create a standard HTTP client (no TLS needed for HTTP)
+	client := &http.Client{}
 
 	req, err := http.NewRequest(method, destUrl, nil)
 	if err != nil {

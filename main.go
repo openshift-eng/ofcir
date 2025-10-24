@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
@@ -58,7 +59,7 @@ func main() {
 	var probeAddr string
 	var webhookPort int
 
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8085", "The address the metric endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8443", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8086", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -81,9 +82,10 @@ func main() {
 	}
 
 	metricsServerOptions := metricsserver.Options{
-		BindAddress:   metricsAddr,
-		SecureServing: false,
-		TLSOpts:       []func(config *tls.Config){disableHTTP2},
+		BindAddress:    metricsAddr,
+		SecureServing:  true,
+		TLSOpts:        []func(config *tls.Config){disableHTTP2},
+		FilterProvider: filters.WithAuthenticationAndAuthorization,
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{

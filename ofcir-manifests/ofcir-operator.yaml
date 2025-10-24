@@ -397,27 +397,9 @@ spec:
     spec:
       containers:
       - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8087/
-        - --logtostderr=true
-        - --ignore-paths=/v1/ofcir,/v1/ofcir/*
-        - --v=0
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 5m
-            memory: 64Mi
-      - args:
         - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
+        - --metrics-bind-address=:8443
+        - --leader-elect
         command:
         - /ofcir-operator
         image: localhost/ofcir:latest
@@ -429,6 +411,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: ofcir-operator
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz
