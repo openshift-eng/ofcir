@@ -19,7 +19,7 @@ require (
 	github.com/samber/lo v1.51.0
 	github.com/softlayer/softlayer-go v1.1.7
 	github.com/stretchr/testify v1.11.1
-	github.com/vladimirvivien/gexe v0.3.0
+	github.com/vladimirvivien/gexe v0.5.0
 	go.etcd.io/etcd v3.3.27+incompatible
 	k8s.io/api v0.32.0
 	k8s.io/apimachinery v0.32.0
