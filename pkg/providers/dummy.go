@@ -59,7 +59,7 @@ func (p *dummyProvider) AcquireCompleted(id string) (bool, Resource, error) {
 
 	resource, ok := p.instances[id]
 	if !ok {
-		return false, Resource{}, fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
+		return false, Resource{}, fmt.Errorf("resource %s not found", id)
 	}
 
 	return true, resource.Resource, nil
@@ -68,7 +68,7 @@ func (p *dummyProvider) AcquireCompleted(id string) (bool, Resource, error) {
 func (p *dummyProvider) Clean(id string) error {
 	_, ok := p.instances[id]
 	if !ok {
-		return fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
+		return fmt.Errorf("resource %s not found", id)
 	}
 
 	return nil
@@ -77,7 +77,7 @@ func (p *dummyProvider) Clean(id string) error {
 func (p *dummyProvider) CleanCompleted(id string) (bool, error) {
 	_, ok := p.instances[id]
 	if !ok {
-		return false, fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
+		return false, fmt.Errorf("resource %s not found", id)
 	}
 
 	return true, nil
@@ -86,7 +86,7 @@ func (p *dummyProvider) CleanCompleted(id string) (bool, error) {
 func (p *dummyProvider) Release(id string) error {
 	resource, ok := p.instances[id]
 	if !ok {
-		return fmt.Errorf(fmt.Sprintf("Resource %s not found", id))
+		return fmt.Errorf("resource %s not found", id)
 	}
 
 	resource.available = true
