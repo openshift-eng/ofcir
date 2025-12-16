@@ -25,7 +25,7 @@ require (
 	k8s.io/apimachinery v0.32.1
 	k8s.io/client-go v0.32.1
 	libvirt.org/go/libvirt v1.11010.0
-	libvirt.org/go/libvirtxml v1.10010.0
+	libvirt.org/go/libvirtxml v1.11010.0
 	sigs.k8s.io/controller-runtime v0.20.0
 	sigs.k8s.io/e2e-framework v0.6.0
 )
