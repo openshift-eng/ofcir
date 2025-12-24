@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine
+FROM golang:1.25-alpine
 RUN mkdir /ofcir
 ADD . /ofcir
 WORKDIR /ofcir

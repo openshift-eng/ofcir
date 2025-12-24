@@ -51,8 +51,8 @@ sudo su
 tar -xzvf /tmp/ofcir.tar.gz
 
 ### Install golang
-curl -OL https://go.dev/dl/go1.24.0.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.24.0.linux-amd64.tar.gz
+curl -OL https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
 export GOPATH=/usr/local/go
 export PATH=$PATH:$GOPATH/bin
 
