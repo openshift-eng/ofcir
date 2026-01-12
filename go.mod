@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gophercloud/gophercloud v1.14.1
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.38.3
+	github.com/onsi/gomega v1.39.0
 	github.com/packethost/packngo v0.31.0
 	github.com/samber/lo v1.52.0
 	github.com/softlayer/softlayer-go v1.2.1
