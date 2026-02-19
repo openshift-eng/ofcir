@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	ec2 "github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -39,7 +40,7 @@ func TestRunInstanceInRegion_Success(t *testing.T) {
 		AMI:             "ami-123",
 		KeyPair:         "keypair",
 		SecurityGroupID: "sg-1",
-		SubnetID:        "subnet-1",
+		SubnetIDs:       []string{"subnet-1"},
 		UserData:        "user-data-base64",
 		PoolName:        "mypool",
 		Device: BlockDeviceSpec{
@@ -75,7 +76,7 @@ func TestRunInstanceInRegion_ErrorScenarios(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to create EC2 client")
 
 	// API error
-	params2 := &RunInstanceParams{Region: "region2"}
+	params2 := &RunInstanceParams{Region: "region2", SubnetIDs: []string{"subnet-1"}}
 	builder.
 		EXPECT().GetEC2Client(ctx, "region2", handler.staticCredentials).
 		Return(client, nil)
@@ -87,7 +88,7 @@ func TestRunInstanceInRegion_ErrorScenarios(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed running instance")
 
 	// No instances returned
-	params3 := &RunInstanceParams{Region: "region3"}
+	params3 := &RunInstanceParams{Region: "region3", SubnetIDs: []string{"subnet-1"}}
 	builder.
 		EXPECT().GetEC2Client(ctx, "region3", handler.staticCredentials).
 		Return(client, nil)
@@ -97,6 +98,49 @@ func TestRunInstanceInRegion_ErrorScenarios(t *testing.T) {
 	_, err = handler.RunInstanceInRegion(ctx, params3)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no instance ID returned")
+}
+
+func TestRunInstanceInRegion_TriesMultipleSubnets(t *testing.T) {
+	ctx, handler, builder, client, teardown := setup(t)
+	defer teardown()
+
+	params := &RunInstanceParams{
+		Region:          "us-east-1",
+		InstanceType:    "t2.micro",
+		AMI:             "ami-123",
+		KeyPair:         "keypair",
+		SecurityGroupID: "sg-1",
+		SubnetIDs:       []string{"subnet-a", "subnet-b"},
+		PoolName:        "mypool",
+		Device: BlockDeviceSpec{
+			DeviceName: "/dev/sdf",
+			DeviceSize: 20,
+			DeviceType: string(ec2types.VolumeTypeGp2),
+		},
+	}
+
+	builder.
+		EXPECT().GetEC2Client(ctx, params.Region, handler.staticCredentials).
+		Return(client, nil)
+
+	gomock.InOrder(
+		client.EXPECT().RunInstances(ctx, gomock.Any()).DoAndReturn(
+			func(_ context.Context, in *ec2.RunInstancesInput, _ ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error) {
+				assert.Equal(t, "subnet-a", aws.ToString(in.SubnetId))
+				return nil, &smithy.GenericAPIError{Code: "InsufficientInstanceCapacity", Message: "no capacity"}
+			},
+		),
+		client.EXPECT().RunInstances(ctx, gomock.Any()).DoAndReturn(
+			func(_ context.Context, in *ec2.RunInstancesInput, _ ...func(*ec2.Options)) (*ec2.RunInstancesOutput, error) {
+				assert.Equal(t, "subnet-b", aws.ToString(in.SubnetId))
+				return &ec2.RunInstancesOutput{Instances: []ec2types.Instance{{InstanceId: lo.ToPtr("i-abc")}}}, nil
+			},
+		),
+	)
+
+	id, err := handler.RunInstanceInRegion(ctx, params)
+	assert.NoError(t, err)
+	assert.Equal(t, "i-abc", *id)
 }
 
 // ReleaseInstanceInRegion
@@ -339,7 +383,7 @@ func TestAcquire_SuccessAndErrors(t *testing.T) {
 			AMI:             "ami1",
 			KeyPair:         "kp",
 			SecurityGroupID: "sg",
-			SubnetID:        "subnet-1",
+			SubnetIDs:       []string{"subnet-1"},
 			UserData:        "",
 			PoolName:        "poolA",
 			Device:          spec.MachineSpec.Device,
@@ -363,7 +407,7 @@ func TestAcquire_SuccessAndErrors(t *testing.T) {
 			AMI:             "ami1",
 			KeyPair:         "kp",
 			SecurityGroupID: "sg",
-			SubnetID:        "subnet-1",
+			SubnetIDs:       []string{"subnet-1"},
 			UserData:        "",
 			PoolName:        "poolA",
 			Device:          spec.MachineSpec.Device,
