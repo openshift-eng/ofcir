@@ -427,7 +427,7 @@ func (p *libvirtProvider) destroyVM(id string) error {
 	key := fmt.Sprintf("%s/%s.qcow2", libvirtImagesPath, id)
 	vol, err := conn.LookupStorageVolByKey(key)
 	if err == nil {
-		err = vol.Delete(libvirt.STORAGE_VOL_DELETE_NORMAL)
+		err = vol.Delete(libvirt.StorageVolDeleteFlags(libvirt.STORAGE_VOL_DELETE_NORMAL))
 		if err != nil {
 			return fmt.Errorf("error deleting volume: %w", err)
 		}

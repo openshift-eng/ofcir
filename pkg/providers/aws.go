@@ -71,7 +71,7 @@ type RunInstanceParams struct {
 	AMI             string
 	KeyPair         string
 	SecurityGroupID string
-	SubnetID        string
+	SubnetIDs       []string
 	UserData        string
 	PoolName        string
 	Device          BlockDeviceSpec
@@ -119,14 +119,13 @@ func (h *awsHandler) RunInstanceInRegion(ctx context.Context, params *RunInstanc
 		return nil, fmt.Errorf("failed to create EC2 client for region %s: %w", params.Region, err)
 	}
 
-	input := &ec2.RunInstancesInput{
+	baseInput := &ec2.RunInstancesInput{
 		ImageId:          aws.String(params.AMI),
 		InstanceType:     ec2types.InstanceType(params.InstanceType),
 		KeyName:          aws.String(params.KeyPair),
 		MinCount:         aws.Int32(MinInstanceCount),
 		MaxCount:         aws.Int32(MaxInstanceCount),
 		SecurityGroupIds: []string{params.SecurityGroupID},
-		SubnetId:         aws.String(params.SubnetID),
 		BlockDeviceMappings: []ec2types.BlockDeviceMapping{
 			{
 				DeviceName: aws.String(params.Device.DeviceName),
@@ -147,29 +146,42 @@ func (h *awsHandler) RunInstanceInRegion(ctx context.Context, params *RunInstanc
 		},
 	}
 	if params.UserData != "" {
-		input.UserData = aws.String(params.UserData)
+		baseInput.UserData = aws.String(params.UserData)
 	}
 
-	output, err := client.RunInstances(ctx, input)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"failed running instance %s with ami ID %s in region %s with keypair name %s, security group %s, subnet ID %s and block devices %s: %w",
-			params.InstanceType,
-			params.AMI,
-			params.Region,
-			params.KeyPair,
-			params.SecurityGroupID,
-			params.SubnetID,
-			fmt.Sprintf("%+v", params.Device),
-			err,
-		)
+	var attemptErrors []error
+	for _, subnetID := range params.SubnetIDs {
+		input := *baseInput
+		input.SubnetId = aws.String(subnetID)
+
+		output, runErr := client.RunInstances(ctx, &input)
+		if runErr != nil {
+			attemptErrors = append(attemptErrors, fmt.Errorf("subnet %s: %w", subnetID, runErr))
+			continue
+		}
+
+		if len(output.Instances) == 0 || output.Instances[0].InstanceId == nil {
+			attemptErrors = append(
+				attemptErrors,
+				fmt.Errorf("subnet %s: %w", subnetID, fmt.Errorf("no instance ID returned")),
+			)
+			break
+		}
+
+		return output.Instances[0].InstanceId, nil
 	}
 
-	if len(output.Instances) == 0 || output.Instances[0].InstanceId == nil {
-		return nil, fmt.Errorf("no instance ID returned")
-	}
-
-	return output.Instances[0].InstanceId, nil
+	return nil, fmt.Errorf(
+		"failed running instance %s with ami ID %s in region %s with keypair name %s, security group %s, attempted subnets %v and block devices %s: %w",
+		params.InstanceType,
+		params.AMI,
+		params.Region,
+		params.KeyPair,
+		params.SecurityGroupID,
+		params.SubnetIDs,
+		fmt.Sprintf("%+v", params.Device),
+		errors.Join(attemptErrors...),
+	)
 }
 
 func (h *awsHandler) ReleaseInstanceInRegion(
@@ -309,11 +321,14 @@ type InstanceSpec struct {
 }
 
 type RegionSpec struct {
-	Name            string         `json:"name"`
-	KeyPairName     string         `json:"keyPairName"`
-	SecurityGroupID string         `json:"securityGroupID"`
-	SubnetID        string         `json:"subnetID"`
-	Instances       []InstanceSpec `json:"instances"`
+	Name            string `json:"name"`
+	KeyPairName     string `json:"keyPairName"`
+	SecurityGroupID string `json:"securityGroupID"`
+	// deprecated, use SubnetIDs instead
+	SubnetID string `json:"subnetID,omitempty"`
+	// Recommendeded to use multiple subnets from different AZs
+	SubnetIDs []string       `json:"subnetIDs,omitempty"`
+	Instances []InstanceSpec `json:"instances"`
 }
 
 type BlockDeviceSpec struct {
@@ -401,6 +416,15 @@ func (p *awsProvider) Acquire(poolSize int, poolName string, poolType string) (R
 
 	for _, regionSpec := range p.config.MachineSpec.Regions {
 		for _, instanceSpec := range regionSpec.Instances {
+			subnetIDs := regionSpec.SubnetIDs
+			if len(subnetIDs) == 0 && regionSpec.SubnetID != "" {
+				subnetIDs = []string{regionSpec.SubnetID}
+			}
+
+			if len(subnetIDs) == 0 {
+				return Resource{}, fmt.Errorf("no subnet IDs provided for region %s", regionSpec.Name)
+			}
+
 			id, err := p.handler.RunInstanceInRegion(
 				ctx,
 				&RunInstanceParams{
@@ -409,7 +433,7 @@ func (p *awsProvider) Acquire(poolSize int, poolName string, poolType string) (R
 					AMI:             instanceSpec.AMIID,
 					KeyPair:         regionSpec.KeyPairName,
 					SecurityGroupID: regionSpec.SecurityGroupID,
-					SubnetID:        regionSpec.SubnetID,
+					SubnetIDs:       subnetIDs,
 					UserData:        p.config.UserData,
 					PoolName:        poolName,
 					Device: BlockDeviceSpec{
