@@ -31,10 +31,11 @@ var locations = []string{"DALLAS09", "DALLAS10", "DALLAS12", "DALLAS13", "FRANKF
 	"TORONTO04", "TORONTO05", "WASHINGTON06", "WASHINGTON07"}
 
 type ibmcloudProviderConfig struct {
-	APIKey string `json:"apikey"`
-	Sshkey string `json:"sshkey"`
-	Preset string `json:"preset"`
-	OS     string `json:"os"`
+	APIKey     string `json:"apikey"`
+	Sshkey     string `json:"sshkey"`
+	Preset     string `json:"preset"`
+	OS         string `json:"os"`
+	ProvScript string `json:"script"`
 }
 
 type ibmcloudProvider struct {
@@ -354,6 +355,7 @@ func (p *ibmcloudProvider) Clean(id string) error {
 	service := services.GetHardwareServerService(p.client)
 	config := datatypes.Container_Hardware_Server_Configuration{}
 	config.SshKeyIds = []int{*key}
+	config.CustomProvisionScriptUri = &p.config.ProvScript
 	config.ItemPrices = prices
 
 	_, err = service.Id(*node.Id).ReloadOperatingSystem(sl.String("FORCE"), &config)
