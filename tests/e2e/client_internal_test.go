@@ -82,10 +82,11 @@ func (c *OfcirClient) doRequest(method string, commandUrl string) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
+	defer r.Body.Close()
+
 	if r.Status == "401 Unauthorized" {
 		return nil, fmt.Errorf("%q", "401 Unauthorized")
 	}
-	defer r.Body.Close()
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
