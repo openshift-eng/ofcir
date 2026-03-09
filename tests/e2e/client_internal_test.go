@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -31,13 +31,13 @@ func NewOfcirClient(t *testing.T, cfg *envconf.Config, token string) *OfcirClien
 
 	rawUrl := cfg.Client().RESTConfig().Host
 	u, err := url.Parse(rawUrl)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	host, _, err := net.SplitHostPort(u.Host)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var service v1.Service
 	err = cfg.Client().Resources().Get(context.Background(), "ofcir-service", "ofcir-system", &service)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	if len(service.Spec.Ports) != 1 {
 		t.Fatalf("found more than one port defined for the ofcir-service")
@@ -116,17 +116,17 @@ func (c *OfcirClient) Acquire(cirtype string) (*OfcirAcquire, error) {
 
 func (c *OfcirClient) TryAcquire() *OfcirAcquire {
 	acquire, err := c.Acquire("host")
-	assert.NoError(c.t, err)
+	require.NoError(c.t, err)
 	return acquire
 }
 
 func (c *OfcirClient) TryAcquireCIR(cirtype string) *ofcirv1.CIResource {
 	acquire, err := c.Acquire(cirtype)
-	assert.NoError(c.t, err)
+	require.NoError(c.t, err)
 
 	var cir ofcirv1.CIResource
 	err = c.r.Get(context.Background(), acquire.Name, "ofcir-system", &cir)
-	assert.NoError(c.t, err)
+	require.NoError(c.t, err)
 
 	return &cir
 }
@@ -159,7 +159,7 @@ func (c *OfcirClient) Status(id string) (*OfcirStatus, error) {
 
 func (c *OfcirClient) TryStatus(id string) *OfcirStatus {
 	status, err := c.Status(id)
-	assert.NoError(c.t, err)
+	require.NoError(c.t, err)
 	return status
 }
 
@@ -176,7 +176,7 @@ func (c *OfcirClient) Release(id string) (string, error) {
 
 func (c *OfcirClient) TryRelease(id string) string {
 	release, err := c.Release(id)
-	assert.NoError(c.t, err)
+	require.NoError(c.t, err)
 	return release
 }
 
