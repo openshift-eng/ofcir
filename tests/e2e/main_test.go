@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/e2e-framework/klient"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
@@ -204,8 +205,36 @@ func deployOfcirOperator(ctx context.Context, cfg *envconf.Config) (context.Cont
 		return ctx, p.Err()
 	}
 
-	// Wait for ofcir operator ready
-	time.Sleep(30 * time.Second)
+	log.Println("Waiting for ofcir operator to be ready")
+	r := cfg.Client().Resources("ofcir-system")
+
+	err := wait.For(
+		conditions.New(r).ResourceListMatchN(&v1.PodList{}, 1, func(object k8s.Object) bool {
+			pod := object.(*v1.Pod)
+			for _, cond := range pod.Status.Conditions {
+				if cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue {
+					return true
+				}
+			}
+			return false
+		}, resources.WithLabelSelector("control-plane=controller-manager")),
+		wait.WithTimeout(180*time.Second),
+		wait.WithInterval(5*time.Second),
+	)
+	if err != nil {
+		var pods v1.PodList
+		if listErr := r.List(context.Background(), &pods); listErr == nil {
+			for _, pod := range pods.Items {
+				log.Printf("Pod %s: phase=%s", pod.Name, pod.Status.Phase)
+				for _, cs := range pod.Status.ContainerStatuses {
+					log.Printf("  container %s: ready=%v state=%+v", cs.Name, cs.Ready, cs.State)
+				}
+			}
+		}
+		return ctx, fmt.Errorf("timed out waiting for ofcir operator to be ready: %w", err)
+	}
+
+	log.Println("Ofcir operator is ready")
 	return ctx, nil
 }
 
