@@ -10,6 +10,7 @@ import (
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,7 +38,8 @@ func ofcirSetup(testDataFile string, pools string) func(ctx context.Context, t *
 		// create a token for the created pools
 		token := envconf.RandomName("e2e", 10)
 		ctx = context.WithValue(ctx, "token", token)
-		cs, _ := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+		cs, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+		require.NoError(t, err)
 		secretclient := cs.CoreV1().Secrets("ofcir-system")
 
 		secret, err := secretclient.Get(context.Background(), "ofcir-tokens", metav1.GetOptions{})
@@ -87,7 +89,8 @@ func ofcirTeardown() func(ctx context.Context, t *testing.T, cfg *envconf.Config
 		assert.Len(t, cirs.Items, 0, "Found some dangling CIResources in the ofcir-system namespace")
 
 		// Remove token
-		cs, _ := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+		cs, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
+		require.NoError(t, err)
 		secretclient := cs.CoreV1().Secrets("ofcir-system")
 		op := "[{\"op\": \"remove\", \"path\": \"/data/" + ctx.Value("token").(string) + "\"}]"
 		_, e := secretclient.Patch(context.Background(), "ofcir-tokens", types.JSONPatchType, []byte(op), metav1.PatchOptions{})
