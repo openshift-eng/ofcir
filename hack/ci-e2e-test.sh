@@ -38,14 +38,21 @@ SSHOPTS=(
 echo "Setup test environment"
 echo "Server IP: ${SERVER_IP}"
 
+# User varies depending on server provider so check/set up root everywhere
+for x in $(seq 10); do
+    test "$x" -eq 10 && exit 1
+    ssh "${SSHOPTS[@]}" "root@${SERVER_IP}" hostname && break
+    ssh "${SSHOPTS[@]}" "cloud-user@${SERVER_IP}" sudo dd if=/home/cloud-user/.ssh/authorized_keys of=/root/.ssh/authorized_keys && break
+    ssh "${SSHOPTS[@]}" "centos@${SERVER_IP}" sudo dd if=/home/centos/.ssh/authorized_keys of=/root/.ssh/authorized_keys && break
+done
+
 # Copy current ofcir sources to the remote server
 tar -czf ofcir.tar.gz ofcir
-scp "${SSHOPTS[@]}" ofcir.tar.gz "cloud-user@${SERVER_IP}:/tmp/ofcir.tar.gz"
+scp "${SSHOPTS[@]}" ofcir.tar.gz "root@${SERVER_IP}:/tmp/ofcir.tar.gz"
 
 # Run tests on remote server
-timeout -s 9 60m ssh "${SSHOPTS[@]}" "cloud-user@${SERVER_IP}" bash - << 'EOF'
+timeout -s 9 60m ssh "${SSHOPTS[@]}" "root@${SERVER_IP}" bash - << 'EOF'
 set -euo pipefail
-sudo su
 
 ### Unpack ofcir sources
 tar -xzvf /tmp/ofcir.tar.gz
