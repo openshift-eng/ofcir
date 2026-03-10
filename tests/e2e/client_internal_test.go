@@ -23,6 +23,7 @@ import (
 type OfcirClient struct {
 	t       *testing.T
 	r       *resources.Resources
+	client  *http.Client
 	baseUrl string
 	token   string
 }
@@ -46,8 +47,13 @@ func NewOfcirClient(t *testing.T, cfg *envconf.Config, token string) *OfcirClien
 	port := service.Spec.Ports[0].NodePort
 
 	return &OfcirClient{
-		t:       t,
-		r:       cfg.Client().Resources("ofcir-system"),
+		t: t,
+		r: cfg.Client().Resources("ofcir-system"),
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
 		baseUrl: fmt.Sprintf("https://%s:%d", host, port),
 		token:   token,
 	}
@@ -64,21 +70,13 @@ type OfcirAcquire struct {
 func (c *OfcirClient) doRequest(method string, commandUrl string) ([]byte, error) {
 	destUrl := fmt.Sprintf("%s/%s", c.baseUrl, commandUrl)
 
-	// Create a custom transport with TLS configuration
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	// Create a new HTTP client with the custom transport
-	client := &http.Client{Transport: tr}
-
 	req, err := http.NewRequest(method, destUrl, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("X-Ofcirtoken", c.token)
 
-	r, err := client.Do(req)
+	r, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
