@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -88,7 +88,7 @@ func (c *OfcirClient) doRequest(method string, commandUrl string) ([]byte, error
 		return nil, fmt.Errorf("%q", "401 Unauthorized")
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
