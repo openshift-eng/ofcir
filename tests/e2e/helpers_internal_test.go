@@ -169,6 +169,27 @@ func waitForCIRState(t *testing.T, r *resources.Resources, cir *ofcirv1.CIResour
 	}))
 }
 
+// waitForCIRStateStable waits for a CIResource to reach the expected state
+// and remain in that state for multiple consecutive polls, ensuring the
+// resource has settled and isn't just passing through transiently.
+func waitForCIRStateStable(t *testing.T, r *resources.Resources, cir *ofcirv1.CIResource, expectedState ofcirv1.CIResourceState) {
+	consecutiveMatches := 0
+	requiredMatches := 3
+	waitFor(t, func(ctx context.Context) (done bool, err error) {
+		var current ofcirv1.CIResource
+		if err := r.Get(ctx, cir.Name, cir.Namespace, &current); err != nil {
+			consecutiveMatches = 0
+			return false, nil
+		}
+		if current.Status.State == expectedState {
+			consecutiveMatches++
+			return consecutiveMatches >= requiredMatches, nil
+		}
+		consecutiveMatches = 0
+		return false, nil
+	})
+}
+
 func waitFor(t *testing.T, conditionFunc apimachinerywait.ConditionWithContextFunc, seconds ...int) {
 	err := _waitFor(conditionFunc, seconds...)
 	assert.NoError(t, err)

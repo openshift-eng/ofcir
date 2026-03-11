@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/stretchr/testify/assert"
@@ -80,12 +79,9 @@ func TestPoolsPriority(t *testing.T) {
 			cirInfo = c.TryAcquireCIR("host")
 			assert.Equal(t, "pool-2", cirInfo.Spec.PoolRef.Name)
 
-			// Fallback resources quickly go through several stages before settling down on "in use"
-			// Wait for things to settle down before so it hits TearDown in a inuse state
-			// waitForCIRState isn't enough because the CIR appears to hit "in use" twice
-			// TODO: Fix in state machine
-			time.Sleep(time.Second * 3)
-			waitForCIRState(t, r, cirInfo, ofcirv1.StateInUse)
+			// Fallback resources go through several stages before settling on "in use",
+			// so wait for the state to be stable across multiple consecutive polls.
+			waitForCIRStateStable(t, r, cirInfo, ofcirv1.StateInUse)
 
 			return ctx
 		}).
