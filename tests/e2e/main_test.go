@@ -105,7 +105,7 @@ func destroyKindCluster(clusterName string) env.Func {
 			return ctx, fmt.Errorf("kind: delete cluster failed: %s: %s", p.Err(), p.Result())
 		}
 		if err := os.RemoveAll(kubeconfig); err != nil {
-			return ctx, fmt.Errorf("kind: remove kubefconfig failed: %w", err)
+			return ctx, fmt.Errorf("kind: remove kubeconfig failed: %w", err)
 		}
 		return ctx, nil
 	}
