@@ -2,7 +2,6 @@ package e2etests
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
@@ -97,9 +96,7 @@ func TestPoolsToken(t *testing.T) {
 		Assess("blocks when empty token", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			c := NewOfcirClient(t, cfg, "")
 			_, e := c.Acquire("host")
-			if assert.Error(t, e) {
-				assert.Equal(t, fmt.Errorf("%q", "401 Unauthorized"), e)
-			}
+			assert.ErrorContains(t, e, "401 Unauthorized")
 			return ctx
 		}).
 		Assess("can only get cir from authorized pool", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
@@ -113,9 +110,7 @@ func TestPoolsToken(t *testing.T) {
 			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
 
 			_, e := c.Acquire("host")
-			if assert.Error(t, e) {
-				assert.Equal(t, fmt.Errorf("%q", "No available resource found of type [host]"), e)
-			}
+			assert.ErrorContains(t, e, "No available resource found of type [host]")
 			return ctx
 		}).
 		Teardown(ofcirTeardown()).
@@ -139,9 +134,7 @@ func TestPoolsTypes(t *testing.T) {
 		Assess("blocks when \"host2\" not specified and \"host\" not available", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 			_, e := c.Acquire("host")
-			if assert.Error(t, e) {
-				assert.Equal(t, fmt.Errorf("%q", "No available resource found of type [host]"), e)
-			}
+			assert.ErrorContains(t, e, "No available resource found of type [host]")
 			return ctx
 		}).
 		Assess("allows when \"host2\" specified and available", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {

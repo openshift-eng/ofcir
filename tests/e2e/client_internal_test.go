@@ -83,7 +83,7 @@ func (c *OfcirClient) doRequest(method string, commandUrl string) ([]byte, error
 	defer r.Body.Close()
 
 	if r.Status == "401 Unauthorized" {
-		return nil, fmt.Errorf("%q", "401 Unauthorized")
+		return nil, fmt.Errorf("401 Unauthorized")
 	}
 
 	body, err := io.ReadAll(r.Body)
@@ -92,7 +92,7 @@ func (c *OfcirClient) doRequest(method string, commandUrl string) ([]byte, error
 	}
 
 	if r.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%q", body)
+		return nil, fmt.Errorf("%s", body)
 	}
 
 	return body, nil
