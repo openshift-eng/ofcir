@@ -84,7 +84,7 @@ unit-tests: fmt vet
 
 .PHONY: e2e-tests
 e2e-tests: 
-	go test -v ./tests/e2e/...
+	go test -v -timeout 20m ./tests/e2e/...
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
