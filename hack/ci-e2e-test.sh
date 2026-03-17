@@ -57,9 +57,11 @@ set -euo pipefail
 ### Unpack ofcir sources
 tar -xzvf /tmp/ofcir.tar.gz
 
-### Install golang
-curl -OL https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
+### Install golang (version from go.mod)
+GO_VERSION=$(grep '^go ' ofcir/go.mod | awk '{print $2}')
+echo "Installing Go ${GO_VERSION}"
+curl -OL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
+tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
 export GOPATH=/usr/local/go
 export PATH=$PATH:$GOPATH/bin
 
