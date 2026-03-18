@@ -27,6 +27,7 @@ import (
 
 const (
 	kindClusterName   = "ofcir-test"
+	ofcirNamespace    = "ofcir-system"
 	defaultOfcirImage = "localhost/ofcir-test:latest"
 	ofcirImageArchive = "/tmp/ofcir-latest.tar"
 )
@@ -206,7 +207,7 @@ func deployOfcirOperator(ctx context.Context, cfg *envconf.Config) (context.Cont
 	}
 
 	log.Println("Waiting for ofcir operator to be ready")
-	r := cfg.Client().Resources("ofcir-system")
+	r := cfg.Client().Resources(ofcirNamespace)
 
 	err := wait.For(
 		conditions.New(r).ResourceListMatchN(&v1.PodList{}, 1, func(object k8s.Object) bool {

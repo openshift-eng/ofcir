@@ -30,7 +30,7 @@ import (
 
 func ofcirSetup(testDataFile string, pools string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		r := cfg.Client().Resources("ofcir-system")
+		r := cfg.Client().Resources(ofcirNamespace)
 
 		err := decoder.DecodeEachFile(ctx, os.DirFS("testdata"), fmt.Sprintf("%s.yaml", testDataFile), decoder.CreateHandler(r))
 		assert.NoError(t, err)
@@ -40,7 +40,7 @@ func ofcirSetup(testDataFile string, pools string) func(ctx context.Context, t *
 		ctx = context.WithValue(ctx, "token", token)
 		cs, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
 		require.NoError(t, err)
-		secretclient := cs.CoreV1().Secrets("ofcir-system")
+		secretclient := cs.CoreV1().Secrets(ofcirNamespace)
 
 		secret, err := secretclient.Get(context.Background(), "ofcir-tokens", metav1.GetOptions{})
 		assert.NoError(t, err)
@@ -59,7 +59,7 @@ func ofcirSetup(testDataFile string, pools string) func(ctx context.Context, t *
 // Removes all the pools and cirs in the ofcir namespaces
 func ofcirTeardown() func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		r := cfg.Client().Resources("ofcir-system")
+		r := cfg.Client().Resources(ofcirNamespace)
 		c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 		// Release any cir still in use
@@ -91,7 +91,7 @@ func ofcirTeardown() func(ctx context.Context, t *testing.T, cfg *envconf.Config
 		// Remove token
 		cs, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
 		require.NoError(t, err)
-		secretclient := cs.CoreV1().Secrets("ofcir-system")
+		secretclient := cs.CoreV1().Secrets(ofcirNamespace)
 		op := "[{\"op\": \"remove\", \"path\": \"/data/" + ctx.Value("token").(string) + "\"}]"
 		_, e := secretclient.Patch(context.Background(), "ofcir-tokens", types.JSONPatchType, []byte(op), metav1.PatchOptions{})
 
@@ -130,7 +130,7 @@ func waitForsPoolReady(t *testing.T, r *resources.Resources) (*ofcirv1.CIPoolLis
 
 func waitForPoolReady(t *testing.T, r *resources.Resources, poolName string) (*ofcirv1.CIPool, *ofcirv1.CIResourceList) {
 	pool := ofcirv1.CIPool{
-		ObjectMeta: metav1.ObjectMeta{Name: poolName, Namespace: "ofcir-system"},
+		ObjectMeta: metav1.ObjectMeta{Name: poolName, Namespace: ofcirNamespace},
 	}
 
 	// Wait until pool reaches the required size
