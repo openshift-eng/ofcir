@@ -37,7 +37,7 @@ func NewOfcirClient(t *testing.T, cfg *envconf.Config, token string) *OfcirClien
 	require.NoError(t, err)
 
 	var service v1.Service
-	err = cfg.Client().Resources().Get(context.Background(), "ofcir-service", "ofcir-system", &service)
+	err = cfg.Client().Resources().Get(context.Background(), "ofcir-service", ofcirNamespace, &service)
 	require.NoError(t, err)
 
 	if len(service.Spec.Ports) != 1 {
@@ -48,7 +48,7 @@ func NewOfcirClient(t *testing.T, cfg *envconf.Config, token string) *OfcirClien
 
 	return &OfcirClient{
 		t: t,
-		r: cfg.Client().Resources("ofcir-system"),
+		r: cfg.Client().Resources(ofcirNamespace),
 		client: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -124,7 +124,7 @@ func (c *OfcirClient) TryAcquireCIR(cirtype string) *ofcirv1.CIResource {
 	require.NoError(c.t, err)
 
 	var cir ofcirv1.CIResource
-	err = c.r.Get(context.Background(), acquire.Name, "ofcir-system", &cir)
+	err = c.r.Get(context.Background(), acquire.Name, ofcirNamespace, &cir)
 	require.NoError(c.t, err)
 
 	return &cir

@@ -15,7 +15,7 @@ func TestDeleteEmptyPool(t *testing.T) {
 		Setup(ofcirSetup("pool-empty", "dummy")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources("ofcir-system")
+			r := cfg.Client().Resources(ofcirNamespace)
 			pool, cirs := waitForPoolReady(t, r, "pool-empty")
 
 			deletePool(t, r, pool)
@@ -33,7 +33,7 @@ func TestDeletePoolWithOnlyAvailableResources(t *testing.T) {
 		Setup(ofcirSetup("pool-with-2-cirs", "dummy")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources("ofcir-system")
+			r := cfg.Client().Resources(ofcirNamespace)
 			pool, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")
 
 			deletePool(t, r, pool)
@@ -50,7 +50,7 @@ func TestDeletePoolWithResourcesInUse(t *testing.T) {
 		Setup(ofcirSetup("pool-with-2-cirs", "pool-with-2-cirs")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources("ofcir-system")
+			r := cfg.Client().Resources(ofcirNamespace)
 			pool, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")
 
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))

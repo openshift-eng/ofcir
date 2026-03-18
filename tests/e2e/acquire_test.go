@@ -16,7 +16,7 @@ func TestAcquire(t *testing.T) {
 		Setup(ofcirSetup("pool-with-2-cirs", "pool-with-2-cirs")).
 		Assess("acquire one resource", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources("ofcir-system")
+			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			waitForPoolReady(t, r, "pool-with-2-cirs")
@@ -37,7 +37,7 @@ func TestAcquireAllResources(t *testing.T) {
 		Setup(ofcirSetup("pool-with-2-cirs", "pool-with-2-cirs")).
 		Assess("acquire all resources", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources("ofcir-system")
+			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			_, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")
@@ -64,7 +64,7 @@ func TestPoolsPriority(t *testing.T) {
 		Setup(ofcirSetup("three-pools", "pool-0,pool-1,pool-2")).
 		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources("ofcir-system")
+			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			waitForsPoolReady(t, r)
@@ -101,7 +101,7 @@ func TestPoolsToken(t *testing.T) {
 		}).
 		Assess("can only get cir from authorized pool", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
-			r := cfg.Client().Resources("ofcir-system")
+			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			waitForsPoolReady(t, r)
@@ -122,7 +122,7 @@ func TestPoolsTypes(t *testing.T) {
 	testenv.Test(t, features.New("resource acquisition by type list").
 		Setup(ofcirSetup("pools-different-types", "pool-0,pool-1")).
 		Assess("allows when \"host\" available", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			r := cfg.Client().Resources("ofcir-system")
+			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			waitForsPoolReady(t, r)
@@ -152,7 +152,7 @@ func TestAcquireDurationResources(t *testing.T) {
 	testenv.Test(t, features.New("resource acquisition").
 		Setup(ofcirSetup("pool-duration", "pool-duration")).
 		Assess("acquire a resources with short duration", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-			r := cfg.Client().Resources("ofcir-system")
+			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
 			waitForPoolReady(t, r, "pool-duration")
