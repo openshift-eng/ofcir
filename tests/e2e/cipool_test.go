@@ -53,7 +53,7 @@ func TestDeletePoolWithResourcesInUse(t *testing.T) {
 			r := cfg.Client().Resources(ofcirNamespace)
 			pool, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")
 
-			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
+			c := NewOfcirClient(t, cfg, ctx.Value(tokenKey).(string))
 
 			cir := c.TryAcquire()
 
