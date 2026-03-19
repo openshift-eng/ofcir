@@ -113,8 +113,8 @@ func (c *OfcirClient) Acquire(cirtype string) (*OfcirAcquire, error) {
 	return acquire, nil
 }
 
-func (c *OfcirClient) TryAcquire() *OfcirAcquire {
-	acquire, err := c.Acquire("host")
+func (c *OfcirClient) TryAcquire(cirtype string) *OfcirAcquire {
+	acquire, err := c.Acquire(cirtype)
 	require.NoError(c.t, err)
 	return acquire
 }
