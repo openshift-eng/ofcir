@@ -67,7 +67,7 @@ func TestPoolsPriority(t *testing.T) {
 			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
-			waitForsPoolReady(t, r)
+			waitForPoolsReady(t, r)
 
 			cirInfo := c.TryAcquireCIR("host")
 			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
@@ -104,7 +104,7 @@ func TestPoolsToken(t *testing.T) {
 			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
-			waitForsPoolReady(t, r)
+			waitForPoolsReady(t, r)
 
 			cirInfo := c.TryAcquireCIR("host")
 			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)
@@ -125,7 +125,7 @@ func TestPoolsTypes(t *testing.T) {
 			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
-			waitForsPoolReady(t, r)
+			waitForPoolsReady(t, r)
 
 			cirInfo := c.TryAcquireCIR("host")
 			assert.Equal(t, "pool-0", cirInfo.Spec.PoolRef.Name)

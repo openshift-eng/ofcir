@@ -101,7 +101,7 @@ func ofcirTeardown() func(ctx context.Context, t *testing.T, cfg *envconf.Config
 	}
 }
 
-func waitForsPoolReady(t *testing.T, r *resources.Resources) (*ofcirv1.CIPoolList, *ofcirv1.CIResourceList) {
+func waitForPoolsReady(t *testing.T, r *resources.Resources) (*ofcirv1.CIPoolList, *ofcirv1.CIResourceList) {
 
 	var pools ofcirv1.CIPoolList
 	err := r.List(context.Background(), &pools)
