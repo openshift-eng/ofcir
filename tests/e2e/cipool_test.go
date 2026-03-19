@@ -13,7 +13,7 @@ func TestDeleteEmptyPool(t *testing.T) {
 
 	testenv.Test(t, features.New("delete an empty pool").
 		Setup(ofcirSetup("pool-empty", "dummy")).
-		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		Assess("delete pool and verify cleanup", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources(ofcirNamespace)
 			pool, cirs := waitForPoolReady(t, r, "pool-empty")
@@ -31,7 +31,7 @@ func TestDeletePoolWithOnlyAvailableResources(t *testing.T) {
 
 	testenv.Test(t, features.New("delete a pool with availabe cirs").
 		Setup(ofcirSetup("pool-with-2-cirs", "dummy")).
-		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		Assess("delete pool with available cirs and verify cleanup", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources(ofcirNamespace)
 			pool, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")
@@ -48,7 +48,7 @@ func TestDeletePoolWithResourcesInUse(t *testing.T) {
 
 	testenv.Test(t, features.New("delete a pool with cirs in use").
 		Setup(ofcirSetup("pool-with-2-cirs", "pool-with-2-cirs")).
-		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		Assess("block deletion until in-use cirs are released", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources(ofcirNamespace)
 			pool, cirs := waitForPoolReady(t, r, "pool-with-2-cirs")

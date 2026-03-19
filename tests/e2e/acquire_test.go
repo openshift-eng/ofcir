@@ -62,7 +62,7 @@ func TestPoolsPriority(t *testing.T) {
 
 	testenv.Test(t, features.New("resource acquisition with priority").
 		Setup(ofcirSetup("three-pools", "pool-0,pool-1,pool-2")).
-		Assess("", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		Assess("acquire resources respecting pool priority", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 
 			r := cfg.Client().Resources(ofcirNamespace)
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
