@@ -29,7 +29,7 @@ func TestDeleteEmptyPool(t *testing.T) {
 
 func TestDeletePoolWithOnlyAvailableResources(t *testing.T) {
 
-	testenv.Test(t, features.New("delete a pool with availabe cirs").
+	testenv.Test(t, features.New("delete a pool with available cirs").
 		Setup(ofcirSetup("pool-with-2-cirs", "dummy")).
 		Assess("delete pool with available cirs and verify cleanup", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 

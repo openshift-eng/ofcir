@@ -86,7 +86,7 @@ func ofcirTeardown() func(ctx context.Context, t *testing.T, cfg *envconf.Config
 		// Verify that the environment is really clean
 		err = r.List(ctx, &cirs)
 		assert.NoError(t, err)
-		assert.Len(t, cirs.Items, 0, "Found some dangling CIResources in the ofcir-system namespace")
+		assert.Len(t, cirs.Items, 0, fmt.Sprintf("Found some dangling CIResources in the %s namespace", ofcirNamespace))
 
 		// Remove token
 		cs, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
