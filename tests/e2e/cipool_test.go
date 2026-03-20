@@ -55,7 +55,7 @@ func TestDeletePoolWithResourcesInUse(t *testing.T) {
 
 			c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
 
-			cir := c.TryAcquire()
+			cir := c.TryAcquire("host")
 
 			deletePool(t, r, pool)
 
