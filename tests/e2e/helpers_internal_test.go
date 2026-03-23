@@ -28,6 +28,10 @@ import (
 // This file contains a number of helper functions capturing the most common actions useful for writing the e2e test
 // Their usage it's recommended also for improving the readability of the e2e tests
 
+type contextKey string
+
+const tokenKey contextKey = "token"
+
 func ofcirSetup(testDataFile string, pools string) func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		r := cfg.Client().Resources(ofcirNamespace)
@@ -37,7 +41,7 @@ func ofcirSetup(testDataFile string, pools string) func(ctx context.Context, t *
 
 		// create a token for the created pools
 		token := envconf.RandomName("e2e", 10)
-		ctx = context.WithValue(ctx, "token", token)
+		ctx = context.WithValue(ctx, tokenKey, token)
 		cs, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
 		require.NoError(t, err)
 		secretclient := cs.CoreV1().Secrets(ofcirNamespace)
@@ -60,7 +64,7 @@ func ofcirSetup(testDataFile string, pools string) func(ctx context.Context, t *
 func ofcirTeardown() func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		r := cfg.Client().Resources(ofcirNamespace)
-		c := NewOfcirClient(t, cfg, ctx.Value("token").(string))
+		c := NewOfcirClient(t, cfg, ctx.Value(tokenKey).(string))
 
 		// Release any cir still in use
 		var cirs ofcirv1.CIResourceList
@@ -92,7 +96,7 @@ func ofcirTeardown() func(ctx context.Context, t *testing.T, cfg *envconf.Config
 		cs, err := kubernetes.NewForConfig(cfg.Client().RESTConfig())
 		require.NoError(t, err)
 		secretclient := cs.CoreV1().Secrets(ofcirNamespace)
-		op := "[{\"op\": \"remove\", \"path\": \"/data/" + ctx.Value("token").(string) + "\"}]"
+		op := "[{\"op\": \"remove\", \"path\": \"/data/" + ctx.Value(tokenKey).(string) + "\"}]"
 		_, e := secretclient.Patch(context.Background(), "ofcir-tokens", types.JSONPatchType, []byte(op), metav1.PatchOptions{})
 
 		assert.NoError(t, e)
