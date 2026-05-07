@@ -152,7 +152,7 @@ func waitForControlPlane(client klient.Client) error {
 
 func ofcirCleanup(ctx context.Context, c *envconf.Config) (context.Context, error) {
 	log.Printf("Cleaning up")
-	if err := os.Remove(ofcirImageArchive); err != nil {
+	if err := os.Remove(ofcirImageArchive); err != nil && !os.IsNotExist(err) {
 		return ctx, err
 	}
 	return ctx, nil
