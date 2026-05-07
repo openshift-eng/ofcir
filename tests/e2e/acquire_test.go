@@ -148,6 +148,33 @@ func TestPoolsTypes(t *testing.T) {
 	)
 }
 
+func TestAcquireAndCheckStatus(t *testing.T) {
+
+	testenv.Test(t, features.New("resource status check").
+		Setup(ofcirSetup("pool-with-2-cirs", "pool-with-2-cirs")).
+		Assess("acquire a resource and verify its status via the API", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+
+			r := cfg.Client().Resources(ofcirNamespace)
+			c := NewOfcirClient(t, cfg, ctx.Value(tokenKey).(string))
+
+			waitForPoolReady(t, r, "pool-with-2-cirs")
+
+			cir := c.TryAcquireCIR("host")
+			waitForCIRState(t, r, cir, ofcirv1.StateInUse)
+
+			status := c.TryStatus(cir.Name)
+
+			assert.Equal(t, cir.Name, status.Name)
+			assert.Equal(t, "pool-with-2-cirs", status.Pool)
+			assert.Equal(t, "in use", status.Status)
+
+			return ctx
+		}).
+		Teardown(ofcirTeardown()).
+		Feature(),
+	)
+}
+
 func TestAcquireDurationResources(t *testing.T) {
 	testenv.Test(t, features.New("resource acquisition").
 		Setup(ofcirSetup("pool-duration", "pool-duration")).
