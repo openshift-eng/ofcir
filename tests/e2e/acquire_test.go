@@ -2,6 +2,7 @@ package e2etests
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
@@ -167,6 +168,56 @@ func TestAcquireAndCheckStatus(t *testing.T) {
 			assert.Equal(t, cir.Name, status.Name)
 			assert.Equal(t, "pool-with-2-cirs", status.Pool)
 			assert.Equal(t, "in use", status.Status)
+
+			return ctx
+		}).
+		Teardown(ofcirTeardown()).
+		Feature(),
+	)
+}
+
+func TestConcurrentAcquireAndRelease(t *testing.T) {
+
+	testenv.Test(t, features.New("concurrent acquire and release lifecycle").
+		Setup(ofcirSetup("pool-with-2-cirs", "pool-with-2-cirs")).
+		Assess("concurrent acquires yield distinct resources that can be released", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+
+			r := cfg.Client().Resources(ofcirNamespace)
+			c := NewOfcirClient(t, cfg, ctx.Value(tokenKey).(string))
+
+			waitForPoolReady(t, r, "pool-with-2-cirs")
+
+			results := make([]*OfcirAcquire, 2)
+			var wg sync.WaitGroup
+			for i := range 2 {
+				wg.Add(1)
+				go func(idx int) {
+					defer wg.Done()
+					acquire, err := c.Acquire("host")
+					if err != nil {
+						t.Errorf("concurrent acquire %d failed: %v", idx, err)
+						return
+					}
+					results[idx] = acquire
+				}(i)
+			}
+			wg.Wait()
+
+			if results[0] == nil || results[1] == nil {
+				t.Fatal("one or both concurrent acquires failed")
+			}
+			assert.NotEqual(t, results[0].Name, results[1].Name, "concurrent acquires returned the same resource")
+
+			for _, a := range results {
+				var cir ofcirv1.CIResource
+				err := r.Get(context.Background(), a.Name, ofcirNamespace, &cir)
+				assert.NoError(t, err)
+
+				waitForCIRState(t, r, &cir, ofcirv1.StateInUse)
+
+				c.TryRelease(a.Name)
+				waitForCIRState(t, r, &cir, ofcirv1.StateAvailable)
+			}
 
 			return ctx
 		}).
