@@ -2,7 +2,7 @@
 A resource pooling service for metal CI jobs
 
 ## Description
-Ofcir provides a unified and simplified way to seamlessly acquire and release resources from the available pools, 
+Ofcir provides a unified and simplified way to seamlessly acquire and release resources from the available pools,
 so that it will be possible to have a more efficient resource management and a more stable CI environment.
 
 ## Getting Started
@@ -60,8 +60,8 @@ make undeploy
 ### How it works
 This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
 
-It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/) 
-which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster 
+It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/)
+which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster
 
 ### Test It Out
 1. Install the CRDs into the cluster:
@@ -88,6 +88,76 @@ make manifests
 **NOTE:** Run `make --help` for more information on all potential `make` targets
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+
+## End-to-end tests
+
+E2e tests run in `tests/e2e` using [e2e-framework](https://github.com/kubernetes-sigs/e2e-framework).
+`TestMain` creates a [kind](https://kind.sigs.k8s.io/) cluster, builds and loads the operator image with podman, deploys via kustomize, then runs the test package.
+That flow is the same in CI and on your laptop; only the wrapper around `make e2e-tests` differs.
+
+### How CI runs e2e
+
+OpenShift CI is configured in [openshift/release](https://github.com/openshift/release) (`ci-operator/config/openshift-eng/ofcir/openshift-eng-ofcir-main.yaml`):
+
+1. **pre** — `ofcir-acquire` provisions an Equinix metal host and writes `server-ip` to `SHARED_DIR`.
+2. **test** — the `ofcir-tests-base` image runs `./ofcir/hack/ci-e2e-test.sh`.
+3. **post** — `ofcir-release` tears down the CIR.
+
+`hack/ci-e2e-test.sh` copies the repo to the remote host, installs Go (from `go.mod`), `make`, `podman`, and `kubectl`, then runs:
+
+```sh
+make e2e-tests
+```
+
+CI does not invoke `hack/local-e2e.sh`.
+Keep `hack/ci-e2e-test.sh` and that make target as the CI entrypoint when changing local tooling.
+
+### Local workflows
+
+| Goal | Command |
+|------|---------|
+| Same as CI (only `go test`) | `make e2e-ci` or `make e2e-tests` |
+| CI step + prereq check | `./hack/local-e2e.sh --skip-checks` |
+| Recommended before push (unit/kustomize + e2e) | `make local-e2e` or `make e2e` |
+| Unit/kustomize only | `./hack/local-e2e.sh --checks-only` |
+
+`make e2e-ci` is an alias for `make e2e-tests` (the target CI runs on the remote host).
+`make local-e2e` calls `hack/local-e2e.sh`, which runs fast checks then `make e2e-tests`.
+
+### Prerequisites
+
+For **CI emulation** (`make e2e-ci`), install what `hack/ci-e2e-test.sh` puts on the remote host, plus `kind` on your `PATH` (TestMain shells out to it):
+
+- Go (version in `go.mod`)
+- `make`, `kubectl`, `podman` (or Docker)
+- `kind`
+
+On Fedora with podman only, `hack/local-e2e.sh` sets `KIND_EXPERIMENTAL_PROVIDER=podman` when needed.
+
+For **`make local-e2e`** (full local run), the same tools apply; `hack/local-e2e.sh` checks them before running tests.
+
+### Examples
+
+Emulate CI (single test):
+
+```sh
+E2E_RUN='^TestAcquire$' make e2e-ci
+```
+
+Longer timeout:
+
+```sh
+E2E_TIMEOUT=30m make e2e-ci
+```
+
+Full local run with fast checks:
+
+```sh
+make local-e2e
+```
+
+Optional `hack/local-e2e.sh` flags (local only): `-r` / `--run`, `--timeout`, `--skip-build`, `--setup-only`, `--teardown`.
+Run `./hack/local-e2e.sh --help` for details.
 
 ## License
 
