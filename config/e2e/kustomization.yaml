@@ -2,9 +2,14 @@ resources:
 - ../default
 
 patches:
-  - path: service_patch.yaml
+  - path: service_ports_patch.yaml
     target:
       kind: Service
+      name: service
+  - path: operator_patch.yaml
+    target:
+      kind: Deployment
+      name: controller-manager
   - path: image_pull_policy_patch.yaml
     target:
       kind: Deployment

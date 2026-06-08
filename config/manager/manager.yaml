@@ -14,8 +14,12 @@ metadata:
   namespace: system
 spec:
   ports:
+  - name: http
+    port: 80
+    targetPort: 8087
+    protocol: TCP
   - name: https
-    port: 443
+    port: 8443
     targetPort: 8443
     protocol: TCP
   selector:
@@ -54,11 +58,17 @@ spec:
         - /ofcir-operator
         args:
         - --leader-elect
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=:8443
         image: ofcir-operator-image:latest
         imagePullPolicy: Always
         name: ofcir-operator
         securityContext:
           allowPrivilegeEscalation: false
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
         livenessProbe:
           httpGet:
             path: /healthz
