@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
@@ -47,9 +48,13 @@ func contains(rtypes []ofcirv1.CIResourceType, rtype ofcirv1.CIResourceType) boo
 	return false
 }
 
-func (c *acquireCmd) Run() error {
+const apiCallTimeout = 10 * time.Second
 
-	pools, err := c.clientset.CIPools(c.namespace).List(context.Background(), v1.ListOptions{})
+func (c *acquireCmd) Run() error {
+	ctx, cancel := context.WithTimeout(context.Background(), apiCallTimeout)
+	defer cancel()
+
+	pools, err := c.clientset.CIPools(c.namespace).List(ctx, v1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -67,7 +72,7 @@ func (c *acquireCmd) Run() error {
 		return nil
 	}
 
-	allCirs, err := c.clientset.CIResources(c.namespace).List(context.Background(), v1.ListOptions{})
+	allCirs, err := c.clientset.CIResources(c.namespace).List(ctx, v1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -101,12 +106,12 @@ func (c *acquireCmd) Run() error {
 	})
 
 	// Let's try to look for an available resource in the default pools
-	if c.lookForAvailableResource(cirs, poolsByName) {
+	if c.lookForAvailableResource(ctx, cirs, poolsByName) {
 		return nil
 	}
 
 	// Let's try on the fallback one
-	if c.lookForAvailableResource(fallbacks, poolsByName) {
+	if c.lookForAvailableResource(ctx, fallbacks, poolsByName) {
 		return nil
 	}
 
@@ -114,7 +119,7 @@ func (c *acquireCmd) Run() error {
 	return nil
 }
 
-func (c *acquireCmd) lookForAvailableResource(cirs []ofcirv1.CIResource, poolsByName map[string]ofcirv1.CIPool) bool {
+func (c *acquireCmd) lookForAvailableResource(ctx context.Context, cirs []ofcirv1.CIResource, poolsByName map[string]ofcirv1.CIPool) bool {
 	for _, r := range cirs {
 
 		// Only available resource are eligible to be acquired
@@ -126,7 +131,7 @@ func (c *acquireCmd) lookForAvailableResource(cirs []ofcirv1.CIResource, poolsBy
 		if r.Spec.State != ofcirv1.StateInUse && r.Spec.State != ofcirv1.StateMaintenance {
 
 			r.Spec.State = ofcirv1.StateInUse
-			_, err := c.clientset.CIResources(r.Namespace).Update(context.Background(), &r, v1.UpdateOptions{})
+			_, err := c.clientset.CIResources(r.Namespace).Update(ctx, &r, v1.UpdateOptions{})
 			if err != nil {
 				continue
 			}

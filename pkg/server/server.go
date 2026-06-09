@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/openshift/ofcir/pkg/server/commands"
@@ -20,8 +20,9 @@ import (
 	ofcirclientv1 "github.com/openshift/ofcir/pkg/server/clientset/v1"
 )
 
+const writeTimeout = 30 * time.Second
+
 type OfcirAPI struct {
-	sync.Mutex
 	config    *rest.Config
 	clientset *ofcirclientv1.OfcirV1Client
 	corev1    corev1.CoreV1Interface
@@ -82,7 +83,9 @@ func (o *OfcirAPI) Init(kubeconfig string) error {
 
 func (o *OfcirAPI) AuthRequired() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		tokens, err := o.corev1.Secrets("ofcir-system").Get(context.Background(), "ofcir-tokens", metav1.GetOptions{})
+		authCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		tokens, err := o.corev1.Secrets("ofcir-system").Get(authCtx, "ofcir-tokens", metav1.GetOptions{})
 		tokenheader := ctx.Request.Header["X-Ofcirtoken"]
 		if (err != nil) || (len(tokenheader) == 0) {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"msg": "401 Unauthorized"})
@@ -98,7 +101,14 @@ func (o *OfcirAPI) AuthRequired() gin.HandlerFunc {
 }
 
 func (o *OfcirAPI) Run() {
-	o.router.Run(fmt.Sprintf(":%s", o.port))
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%s", o.port),
+		Handler:      o.router,
+		WriteTimeout: writeTimeout,
+		ReadTimeout:  10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+	srv.ListenAndServe()
 }
 
 func (o *OfcirAPI) handleGetCirStatus(c *gin.Context) {
@@ -112,9 +122,6 @@ func (o *OfcirAPI) handleGetCirStatus(c *gin.Context) {
 }
 
 func (o *OfcirAPI) handleAcquireCir(c *gin.Context) {
-	o.Lock()
-	defer o.Unlock()
-
 	resourceType := c.DefaultQuery("type", string(ofcirv1.TypeCIHost))
 	cmd := commands.NewAcquireCmd(c, o.clientset, o.namespace, resourceType)
 	if err := cmd.Run(); err != nil {
@@ -125,9 +132,6 @@ func (o *OfcirAPI) handleAcquireCir(c *gin.Context) {
 }
 
 func (o *OfcirAPI) handleReleaseCir(c *gin.Context) {
-	o.Lock()
-	defer o.Unlock()
-
 	cirName := c.Param("cirName")
 	cmd := commands.NewReleaseCmd(c, o.clientset, o.namespace, cirName)
 	if err := cmd.Run(); err != nil {
