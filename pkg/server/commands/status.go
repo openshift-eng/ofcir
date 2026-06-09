@@ -3,11 +3,12 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/openshift/ofcir/pkg/utils"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	ofcirclientv1 "github.com/openshift/ofcir/pkg/server/clientset/v1"
+	"github.com/openshift/ofcir/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,8 +30,10 @@ func NewStatusCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns str
 }
 
 func (c *statusCmd) Run() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	r, err := c.clientset.CIResources(c.namespace).Get(context.Background(), c.cirName, v1.GetOptions{})
+	r, err := c.clientset.CIResources(c.namespace).Get(ctx, c.cirName, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.context.JSON(http.StatusBadRequest, gin.H{
@@ -46,7 +49,7 @@ func (c *statusCmd) Run() error {
 		return nil
 	}
 
-	pool, err := c.clientset.CIPools(c.namespace).Get(context.Background(), r.Spec.PoolRef.Name, v1.GetOptions{})
+	pool, err := c.clientset.CIPools(c.namespace).Get(ctx, r.Spec.PoolRef.Name, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.context.JSON(http.StatusBadRequest, gin.H{
