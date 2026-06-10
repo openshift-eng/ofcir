@@ -48,13 +48,19 @@ func contains(rtypes []ofcirv1.CIResourceType, rtype ofcirv1.CIResourceType) boo
 	return false
 }
 
-const apiCallTimeout = 10 * time.Second
+const (
+	overallTimeout = 55 * time.Second
+	apiCallTimeout = 18 * time.Second
+)
 
 func (c *acquireCmd) Run() error {
-	ctx, cancel := context.WithTimeout(context.Background(), apiCallTimeout)
-	defer cancel()
+	overallCtx, overallCancel := context.WithTimeout(c.context.Request.Context(), overallTimeout)
+	defer overallCancel()
 
-	pools, err := c.clientset.CIPools(c.namespace).List(ctx, v1.ListOptions{})
+	listCtx, listCancel := context.WithTimeout(overallCtx, apiCallTimeout)
+	defer listCancel()
+
+	pools, err := c.clientset.CIPools(c.namespace).List(listCtx, v1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -72,7 +78,10 @@ func (c *acquireCmd) Run() error {
 		return nil
 	}
 
-	allCirs, err := c.clientset.CIResources(c.namespace).List(ctx, v1.ListOptions{})
+	cirsCtx, cirsCancel := context.WithTimeout(overallCtx, apiCallTimeout)
+	defer cirsCancel()
+
+	allCirs, err := c.clientset.CIResources(c.namespace).List(cirsCtx, v1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -106,12 +115,12 @@ func (c *acquireCmd) Run() error {
 	})
 
 	// Let's try to look for an available resource in the default pools
-	if c.lookForAvailableResource(ctx, cirs, poolsByName) {
+	if c.lookForAvailableResource(overallCtx, cirs, poolsByName) {
 		return nil
 	}
 
 	// Let's try on the fallback one
-	if c.lookForAvailableResource(ctx, fallbacks, poolsByName) {
+	if c.lookForAvailableResource(overallCtx, fallbacks, poolsByName) {
 		return nil
 	}
 
@@ -121,6 +130,9 @@ func (c *acquireCmd) Run() error {
 
 func (c *acquireCmd) lookForAvailableResource(ctx context.Context, cirs []ofcirv1.CIResource, poolsByName map[string]ofcirv1.CIPool) bool {
 	for _, r := range cirs {
+		if ctx.Err() != nil {
+			return false
+		}
 
 		// Only available resource are eligible to be acquired
 		if r.Status.State != ofcirv1.StateAvailable {
@@ -131,7 +143,9 @@ func (c *acquireCmd) lookForAvailableResource(ctx context.Context, cirs []ofcirv
 		if r.Spec.State != ofcirv1.StateInUse && r.Spec.State != ofcirv1.StateMaintenance {
 
 			r.Spec.State = ofcirv1.StateInUse
-			_, err := c.clientset.CIResources(r.Namespace).Update(ctx, &r, v1.UpdateOptions{})
+			updateCtx, updateCancel := context.WithTimeout(ctx, apiCallTimeout)
+			_, err := c.clientset.CIResources(r.Namespace).Update(updateCtx, &r, v1.UpdateOptions{})
+			updateCancel()
 			if err != nil {
 				continue
 			}

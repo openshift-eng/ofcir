@@ -30,10 +30,13 @@ func NewStatusCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns str
 }
 
 func (c *statusCmd) Run() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	overallCtx, overallCancel := context.WithTimeout(c.context.Request.Context(), 55*time.Second)
+	defer overallCancel()
 
-	r, err := c.clientset.CIResources(c.namespace).Get(ctx, c.cirName, v1.GetOptions{})
+	getCtx, getCancel := context.WithTimeout(overallCtx, 18*time.Second)
+	defer getCancel()
+
+	r, err := c.clientset.CIResources(c.namespace).Get(getCtx, c.cirName, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.context.JSON(http.StatusBadRequest, gin.H{
@@ -49,7 +52,10 @@ func (c *statusCmd) Run() error {
 		return nil
 	}
 
-	pool, err := c.clientset.CIPools(c.namespace).Get(ctx, r.Spec.PoolRef.Name, v1.GetOptions{})
+	poolCtx, poolCancel := context.WithTimeout(overallCtx, 18*time.Second)
+	defer poolCancel()
+
+	pool, err := c.clientset.CIPools(c.namespace).Get(poolCtx, r.Spec.PoolRef.Name, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.context.JSON(http.StatusBadRequest, gin.H{

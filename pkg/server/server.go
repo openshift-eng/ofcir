@@ -20,8 +20,6 @@ import (
 	ofcirclientv1 "github.com/openshift/ofcir/pkg/server/clientset/v1"
 )
 
-const writeTimeout = 30 * time.Second
-
 type OfcirAPI struct {
 	config    *rest.Config
 	clientset *ofcirclientv1.OfcirV1Client
@@ -83,7 +81,7 @@ func (o *OfcirAPI) Init(kubeconfig string) error {
 
 func (o *OfcirAPI) AuthRequired() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		authCtx, cancel := context.WithTimeout(ctx.Request.Context(), 5*time.Second)
 		defer cancel()
 		tokens, err := o.corev1.Secrets("ofcir-system").Get(authCtx, "ofcir-tokens", metav1.GetOptions{})
 		tokenheader := ctx.Request.Header["X-Ofcirtoken"]
@@ -102,11 +100,10 @@ func (o *OfcirAPI) AuthRequired() gin.HandlerFunc {
 
 func (o *OfcirAPI) Run() {
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%s", o.port),
-		Handler:      o.router,
-		WriteTimeout: writeTimeout,
-		ReadTimeout:  10 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		Addr:        fmt.Sprintf(":%s", o.port),
+		Handler:     o.router,
+		ReadTimeout: 10 * time.Second,
+		IdleTimeout: 120 * time.Second,
 	}
 	srv.ListenAndServe()
 }

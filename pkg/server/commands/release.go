@@ -31,10 +31,13 @@ func NewReleaseCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns st
 }
 
 func (c *releaseCmd) Run() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	overallCtx, overallCancel := context.WithTimeout(c.context.Request.Context(), 55*time.Second)
+	defer overallCancel()
 
-	r, err := c.clientset.CIResources(c.namespace).Get(ctx, c.cirName, v1.GetOptions{})
+	getCtx, getCancel := context.WithTimeout(overallCtx, 18*time.Second)
+	defer getCancel()
+
+	r, err := c.clientset.CIResources(c.namespace).Get(getCtx, c.cirName, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.context.JSON(http.StatusBadRequest, gin.H{
@@ -53,7 +56,9 @@ func (c *releaseCmd) Run() error {
 	switch r.Status.State {
 	case ofcirv1.StateInUse:
 		r.Spec.State = ofcirv1.StateAvailable
-		_, err := c.clientset.CIResources(r.Namespace).Update(ctx, r, v1.UpdateOptions{})
+		updateCtx, updateCancel := context.WithTimeout(overallCtx, 18*time.Second)
+		defer updateCancel()
+		_, err := c.clientset.CIResources(r.Namespace).Update(updateCtx, r, v1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
