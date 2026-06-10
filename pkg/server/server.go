@@ -51,6 +51,9 @@ func (o *OfcirAPI) Init(kubeconfig string) error {
 	if err != nil {
 		return err
 	}
+
+	config.QPS = 50
+	config.Burst = 100
 	o.config = config
 
 	ofcirv1.AddToScheme(scheme.Scheme)
