@@ -18,12 +18,12 @@ import (
 
 type acquireCmd struct {
 	context       *gin.Context
-	clientset     *ofcirclientv1.OfcirV1Client
+	clientset     ofcirclientv1.OfcirV1Interface
 	namespace     string
 	resourceTypes []ofcirv1.CIResourceType
 }
 
-func NewAcquireCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns string, resourceType_str string) command {
+func NewAcquireCmd(c *gin.Context, clientset ofcirclientv1.OfcirV1Interface, ns string, resourceType_str string) command {
 	// type can be a comma seperated list
 	resourceTypes_split := strings.Split(resourceType_str, ",")
 	resourceTypes := make([]ofcirv1.CIResourceType, len(resourceTypes_split))
