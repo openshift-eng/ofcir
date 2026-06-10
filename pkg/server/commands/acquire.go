@@ -49,8 +49,8 @@ func contains(rtypes []ofcirv1.CIResourceType, rtype ofcirv1.CIResourceType) boo
 }
 
 const (
-	overallTimeout = 55 * time.Second
-	apiCallTimeout = 18 * time.Second
+	overallTimeout = 50 * time.Second
+	apiCallTimeout = 15 * time.Second
 )
 
 func (c *acquireCmd) Run() error {

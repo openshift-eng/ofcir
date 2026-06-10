@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
@@ -31,10 +30,10 @@ func NewReleaseCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns st
 }
 
 func (c *releaseCmd) Run() error {
-	overallCtx, overallCancel := context.WithTimeout(c.context.Request.Context(), 55*time.Second)
+	overallCtx, overallCancel := context.WithTimeout(c.context.Request.Context(), overallTimeout)
 	defer overallCancel()
 
-	getCtx, getCancel := context.WithTimeout(overallCtx, 18*time.Second)
+	getCtx, getCancel := context.WithTimeout(overallCtx, apiCallTimeout)
 	defer getCancel()
 
 	r, err := c.clientset.CIResources(c.namespace).Get(getCtx, c.cirName, v1.GetOptions{})
@@ -56,7 +55,7 @@ func (c *releaseCmd) Run() error {
 	switch r.Status.State {
 	case ofcirv1.StateInUse:
 		r.Spec.State = ofcirv1.StateAvailable
-		updateCtx, updateCancel := context.WithTimeout(overallCtx, 18*time.Second)
+		updateCtx, updateCancel := context.WithTimeout(overallCtx, apiCallTimeout)
 		defer updateCancel()
 		_, err := c.clientset.CIResources(r.Namespace).Update(updateCtx, r, v1.UpdateOptions{})
 		if err != nil {
