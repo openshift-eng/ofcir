@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	ofcirclientv1 "github.com/openshift/ofcir/pkg/server/clientset/v1"
@@ -30,10 +29,10 @@ func NewStatusCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns str
 }
 
 func (c *statusCmd) Run() error {
-	overallCtx, overallCancel := context.WithTimeout(c.context.Request.Context(), 55*time.Second)
+	overallCtx, overallCancel := context.WithTimeout(c.context.Request.Context(), overallTimeout)
 	defer overallCancel()
 
-	getCtx, getCancel := context.WithTimeout(overallCtx, 18*time.Second)
+	getCtx, getCancel := context.WithTimeout(overallCtx, apiCallTimeout)
 	defer getCancel()
 
 	r, err := c.clientset.CIResources(c.namespace).Get(getCtx, c.cirName, v1.GetOptions{})
@@ -52,7 +51,7 @@ func (c *statusCmd) Run() error {
 		return nil
 	}
 
-	poolCtx, poolCancel := context.WithTimeout(overallCtx, 18*time.Second)
+	poolCtx, poolCancel := context.WithTimeout(overallCtx, apiCallTimeout)
 	defer poolCancel()
 
 	pool, err := c.clientset.CIPools(c.namespace).Get(poolCtx, r.Spec.PoolRef.Name, v1.GetOptions{})
