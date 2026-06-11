@@ -15,12 +15,12 @@ import (
 
 type releaseCmd struct {
 	context   *gin.Context
-	clientset *ofcirclientv1.OfcirV1Client
+	clientset ofcirclientv1.OfcirV1Interface
 	namespace string
 	cirName   string
 }
 
-func NewReleaseCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns string, cirName string) command {
+func NewReleaseCmd(c *gin.Context, clientset ofcirclientv1.OfcirV1Interface, ns string, cirName string) command {
 	return &releaseCmd{
 		context:   c,
 		clientset: clientset,

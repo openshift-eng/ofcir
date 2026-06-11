@@ -14,12 +14,12 @@ import (
 
 type statusCmd struct {
 	context   *gin.Context
-	clientset *ofcirclientv1.OfcirV1Client
+	clientset ofcirclientv1.OfcirV1Interface
 	namespace string
 	cirName   string
 }
 
-func NewStatusCmd(c *gin.Context, clientset *ofcirclientv1.OfcirV1Client, ns string, cirName string) command {
+func NewStatusCmd(c *gin.Context, clientset ofcirclientv1.OfcirV1Interface, ns string, cirName string) command {
 	return &statusCmd{
 		context:   c,
 		clientset: clientset,

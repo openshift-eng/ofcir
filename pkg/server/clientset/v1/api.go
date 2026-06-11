@@ -6,8 +6,9 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-type OfcirV11Interface interface {
+type OfcirV1Interface interface {
 	CIPools(namespace string) CIPoolInterface
+	CIResources(namespace string) CIResourceInterface
 }
 
 type OfcirV1Client struct {
