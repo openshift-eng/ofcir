@@ -124,6 +124,11 @@ func (c *acquireCmd) Run() error {
 		return nil
 	}
 
+	if overallCtx.Err() != nil {
+		c.context.String(http.StatusServiceUnavailable, "Timed out while searching for available resource")
+		return nil
+	}
+
 	c.context.String(http.StatusNotFound, "No available resource found of type %v", c.resourceTypes)
 	return nil
 }
