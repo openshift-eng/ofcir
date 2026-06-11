@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	ofcirv1 "github.com/openshift/ofcir/api/v1"
 	"github.com/stretchr/testify/assert"
@@ -240,6 +241,84 @@ func TestAcquireDurationResources(t *testing.T) {
 			waitForCIRState(t, r, cir, ofcirv1.StateInUse)
 			// CIR should be released after 10 seconds (actually a minute due to reconcile loop timing)
 			waitForCIRState(t, r, cir, ofcirv1.StateAvailable)
+
+			return ctx
+		}).
+		Teardown(ofcirTeardown()).
+		Feature(),
+	)
+}
+
+func TestConcurrentLoadBurst(t *testing.T) {
+	const numRequests = 20
+	const maxResponseTime = 10 * time.Second
+
+	testenv.Test(t, features.New("concurrent load burst").
+		Setup(ofcirSetup("pool-load-test", "pool-load-test")).
+		Assess("all responses arrive within timeout budget", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+
+			r := cfg.Client().Resources(ofcirNamespace)
+			c := NewOfcirClient(t, cfg, ctx.Value(tokenKey).(string))
+
+			waitForPoolReady(t, r, "pool-load-test")
+
+			type result struct {
+				acquire    *OfcirAcquire
+				err        error
+				statusCode int
+				duration   time.Duration
+			}
+
+			results := make([]result, numRequests)
+			var wg sync.WaitGroup
+			for i := range numRequests {
+				wg.Add(1)
+				go func(idx int) {
+					defer wg.Done()
+					start := time.Now()
+					acq, err := c.Acquire("host")
+					results[idx] = result{
+						acquire:  acq,
+						err:      err,
+						duration: time.Since(start),
+					}
+				}(i)
+			}
+			wg.Wait()
+
+			var successes int
+			var maxDur time.Duration
+			for i, res := range results {
+				if res.duration > maxDur {
+					maxDur = res.duration
+				}
+
+				if res.err != nil {
+					assert.NotContains(t, res.err.Error(), "connection",
+						"request %d had connection error: %v", i, res.err)
+					assert.NotContains(t, res.err.Error(), "EOF",
+						"request %d had EOF error: %v", i, res.err)
+				}
+
+				assert.Less(t, res.duration, maxResponseTime,
+					"request %d took %v (exceeds %v budget)", i, res.duration, maxResponseTime)
+
+				if res.acquire != nil {
+					successes++
+				}
+
+				t.Logf("request %02d: duration=%v acquired=%v err=%v",
+					i, res.duration.Round(time.Millisecond), res.acquire != nil, res.err)
+			}
+
+			assert.LessOrEqual(t, successes, 4,
+				"pool has 4 resources, cannot acquire more")
+			assert.Greater(t, successes, 0,
+				"at least one request should succeed")
+			assert.Less(t, maxDur, maxResponseTime,
+				"slowest request took %v, expected under %v", maxDur, maxResponseTime)
+
+			t.Logf("Summary: %d/%d acquired, max duration: %v", successes, numRequests, maxDur)
 
 			return ctx
 		}).
