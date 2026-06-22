@@ -82,9 +82,24 @@ build: generate fmt vet ## Build manager binary.
 unit-tests: fmt vet
 	go test ./controllers/... ./pkg/...
 
+E2E_TIMEOUT ?= 20m
+ifdef E2E_RUN
+E2E_RUN_FLAG := -run '$(E2E_RUN)'
+endif
+
 .PHONY: e2e-tests
-e2e-tests: 
-	go test -v -timeout 20m ./tests/e2e/...
+e2e-tests: ## Run e2e test package (CI: hack/ci-e2e-test.sh on remote host; do not call go test elsewhere).
+	go test -v -timeout $(E2E_TIMEOUT) $(E2E_RUN_FLAG) ./tests/e2e/...
+
+.PHONY: e2e-ci
+e2e-ci: e2e-tests ## Emulate CI e2e step (same make target as openshift/release e2e-tests job).
+
+.PHONY: local-e2e
+local-e2e: ## Run e2e locally: fast checks then same go test path as CI (hack/local-e2e.sh).
+	$(CURDIR)/hack/local-e2e.sh
+
+.PHONY: e2e
+e2e: local-e2e ## Alias for make local-e2e
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
