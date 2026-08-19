@@ -18,7 +18,7 @@ require (
 	github.com/packethost/packngo v0.31.0
 	github.com/samber/lo v1.53.0
 	github.com/softlayer/softlayer-go v1.2.1
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	github.com/vladimirvivien/gexe v0.5.0
 	go.etcd.io/etcd v3.3.27+incompatible
 	k8s.io/api v0.36.3
