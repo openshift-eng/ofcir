@@ -106,7 +106,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: ofcir-image
-ofcir-image: 
+ofcir-image:
 	podman build -t ${IMG} -f Dockerfile .
 
 ##@ Deployment
@@ -135,7 +135,7 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 	$(KUSTOMIZE) build ${KUSTOMIZE_BUILD_DIR} | kubectl apply -f -
 
 .PHONY: generate-deploy-manifests ## Same as deploy, but the output is stored into $DEPLOY_MANIFESTS_DIR
-generate-deploy-manifests: $(DEPLOY_MANIFESTS_DIR) manifests kustomize 
+generate-deploy-manifests: $(DEPLOY_MANIFESTS_DIR) manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image ofcir-operator-image=${IMG}
 	$(KUSTOMIZE) build ${KUSTOMIZE_BUILD_DIR} > $(DEPLOY_MANIFESTS_DIR)/ofcir-operator.yaml
 
@@ -167,11 +167,10 @@ KUSTOMIZE_VERSION ?= v5.7.0
 CONTROLLER_TOOLS_VERSION ?= v0.17.3
 MOCKGEN_VERSION ?= v1.6.0
 
-KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
-	curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION)
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
